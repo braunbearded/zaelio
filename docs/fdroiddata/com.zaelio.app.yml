@@ -13,9 +13,9 @@ Repo: https://github.com/braunbearded/zaelio.git
 Binaries: https://github.com/braunbearded/zaelio/releases/download/v%v/zaelio.apk
 
 Builds:
-  - versionName: 1.0.6
-    versionCode: 7
-    commit: 85e773db47e6fe518bcaafb0b99e34a11f813a09
+  - versionName: 1.0.7
+    versionCode: 8
+    commit: ff32aa63d11037ccd60cdfd9bd3945e5edd667ae
     subdir: app
     gradle:
       - yes
@@ -24,5 +24,5 @@ AllowedAPKSigningKeys: cf4f45e5540e0a773818b307fe814309e79770cba68633b5009ee0ad2
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.0.6
-CurrentVersionCode: 7
+CurrentVersion: 1.0.7
+CurrentVersionCode: 8
