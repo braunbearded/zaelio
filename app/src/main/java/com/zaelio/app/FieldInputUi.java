@@ -46,22 +46,19 @@ final class FieldInputUi {
             boolean readOnly,
             boolean collapsed,
             Runnable onChange) {
-        LinearLayout fieldBox = new LinearLayout(activity);
-        fieldBox.setOrientation(LinearLayout.VERTICAL);
-        fieldBox.setPadding(ui.spaceM(), ui.spaceM(), ui.spaceM(), ui.spaceM());
-        fieldBox.setBackground(ui.makeRoundedCard(theme.surfaceAltColor(), theme.borderColor()));
+        LinearLayout fieldBox = ui.compactCard();
         LinearLayout.LayoutParams fieldBoxLp = new LinearLayout.LayoutParams(-1, -2);
         fieldBoxLp.bottomMargin = ui.spaceM();
         box.addView(fieldBox, fieldBoxLp);
 
         TextView title = ui.titleText(fieldLabel(field));
-        ImageView expand = expandAction();
+        ImageView expand = ui.expandIcon();
         LinearLayout header = ui.listRow(null, title, expand);
-        header.setPadding(0, 0, 0, ui.spaceS());
         fieldBox.addView(header);
 
         LinearLayout content = new LinearLayout(activity);
         content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(0, ui.spaceS(), ui.spaceS(), 0);
         fieldBox.addView(content);
         View.OnClickListener toggle = v -> setCollapsed(content, expand, content.getVisibility() == View.VISIBLE);
         header.setOnClickListener(toggle);
@@ -228,17 +225,6 @@ final class FieldInputUi {
             content.setTranslationY(-ui.spaceXs());
             content.animate().alpha(1f).translationY(0f).setDuration(150).start();
         }
-    }
-
-    private ImageView expandAction() {
-        ImageView view = new ImageView(activity);
-        view.setImageResource(R.drawable.ic_expand_more_24);
-        view.setColorFilter(theme.mutedTextColor());
-        view.setScaleType(ImageView.ScaleType.CENTER);
-        view.setMinimumHeight(ui.rowHeight());
-        view.setClickable(true);
-        view.setFocusable(true);
-        return view;
     }
 
     private void styleTimerToggle(Button button, boolean running) {

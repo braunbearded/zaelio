@@ -452,7 +452,7 @@ public final class TrackerFlowUi {
 
         View reorder = reorderHandle();
         TextView menu = iconAction("⋮");
-        ImageView expand = expandAction();
+        ImageView expand = ui.expandIcon();
 
         views.keyInput = labeledInput("Key", field == null ? "" : field.key, InputType.TYPE_CLASS_TEXT);
         views.labelInput = labeledInput("Feldname", field == null ? "" : field.label, InputType.TYPE_CLASS_TEXT);
@@ -735,17 +735,6 @@ public final class TrackerFlowUi {
 
     private TextView iconAction(String text) {
         return ui.listIcon(text);
-    }
-
-    private ImageView expandAction() {
-        ImageView view = new ImageView(activity);
-        view.setImageResource(R.drawable.ic_expand_more_24);
-        view.setColorFilter(theme.mutedTextColor());
-        view.setScaleType(ImageView.ScaleType.CENTER);
-        view.setMinimumHeight(ui.rowHeight());
-        view.setClickable(true);
-        view.setFocusable(true);
-        return view;
     }
 
     private <T> void reorderList(List<T> list, T item, int direction) {

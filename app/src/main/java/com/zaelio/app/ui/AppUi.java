@@ -421,6 +421,17 @@ public final class AppUi {
         return view;
     }
 
+    public ImageView expandIcon() {
+        ImageView view = new ImageView(activity);
+        view.setImageResource(R.drawable.ic_expand_more_24);
+        view.setColorFilter(theme.mutedTextColor());
+        view.setScaleType(ImageView.ScaleType.CENTER);
+        view.setMinimumHeight(rowHeight());
+        view.setClickable(true);
+        view.setFocusable(true);
+        return view;
+    }
+
     public androidx.appcompat.app.AlertDialog showCardDialog(View content) {
         androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
                 .setView(content)
