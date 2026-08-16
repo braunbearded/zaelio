@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.7
+
+- Improved session input performance with debounced, batched field saves.
+- Added animated collapse/expand controls for live session fields and a setting for their default start state.
+- Aligned live session field cards with the app's shared Material-style card and expand icon design.
+- Reworked settings selection controls to keep scroll position on global refreshes and avoid unnecessary local flicker.
+- Restored accent color options as colored controls.
+- Smoothed settings refreshes with a crossfade after global setting changes.
+- Added tests for session batch-save replacement, numeric formatting/parsing, and session field collapse settings.
+- Made live session text fields start compact and grow with multiline content, including prefilled values.
+- Colored app bar titles and back buttons with the selected accent color.
+- Fixed tracker-editor delete gestures so dropdown/input interactions do not trigger delayed or stacked delete dialogs.
+
 ## 1.0.6
 
 - Added language selection and multilingual UI support.
