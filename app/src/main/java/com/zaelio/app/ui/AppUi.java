@@ -9,6 +9,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
@@ -380,7 +381,8 @@ public final class AppUi {
         input.setHint(null);
         input.setHintTextColor(inputHintStateList());
         input.setBackground(null);
-        layout.addView(input, new LinearLayout.LayoutParams(-1, input.getMinLines() > 1 ? -2 : rowHeight()));
+        boolean multiline = (input.getInputType() & InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
+        layout.addView(input, new LinearLayout.LayoutParams(-1, multiline ? -2 : rowHeight()));
         return layout;
     }
 

@@ -80,8 +80,9 @@ final class FieldInputUi {
     private void stringControl(LinearLayout fieldBox, FieldDefinition field, Object value, Map<String, View> inputs, boolean readOnly, Runnable onChange) {
         EditText editText = styledEditText(value);
         editText.setSingleLine(false);
-        editText.setMinLines(stringMinLines());
+        editText.setMinLines(1);
         editText.setMaxLines(stringMaxLines());
+        editText.setHorizontallyScrolling(false);
         editText.setGravity(Gravity.TOP | Gravity.START);
         editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         editText.setTextSize(ui.sp(18));
@@ -238,11 +239,6 @@ final class FieldInputUi {
         view.clearFocus();
     }
 
-
-    private int stringMinLines() {
-        String size = theme.fieldSize();
-        return "large".equals(size) ? 3 : "compact".equals(size) ? 1 : 2;
-    }
 
     private int stringMaxLines() {
         String size = theme.fieldSize();
