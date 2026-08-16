@@ -288,12 +288,36 @@ public final class TrackerFlowUi {
         scrollView.addView(box);
 
         Map<String, Object> values = initialValues(session, tracker.fields);
+        Map<Long, FieldDefinition> dirtyFields = new LinkedHashMap<>();
+        final Runnable[] pendingSave = new Runnable[1];
+        Runnable flushSave = () -> {
+            if (pendingSave[0] != null) {
+                handler.removeCallbacks(pendingSave[0]);
+                pendingSave[0] = null;
+            }
+            saveSessionFields(session, tracker.fields, inputs);
+        };
+        Runnable saveDirtyFields = () -> {
+            saveSessionFields(session, new ArrayList<>(dirtyFields.values()), inputs);
+            dirtyFields.clear();
+        };
         for (FieldDefinition field : tracker.fields) {
-            fieldInputUi.fieldControl(box, field, values, inputs, false, () -> saveSessionFields(session, tracker.fields, inputs));
+            Runnable scheduleSave = () -> {
+                dirtyFields.put(field.id, field);
+                if (pendingSave[0] != null) {
+                    handler.removeCallbacks(pendingSave[0]);
+                }
+                pendingSave[0] = () -> {
+                    pendingSave[0] = null;
+                    saveDirtyFields.run();
+                };
+                handler.postDelayed(pendingSave[0], 700);
+            };
+            fieldInputUi.fieldControl(box, field, values, inputs, false, theme.sessionFieldsCollapsed(), scheduleSave);
         }
 
         Runnable back = () -> {
-            saveSessionFields(session, tracker.fields, inputs);
+            flushSave.run();
             clearTimers();
             backToSessions.run();
         };
@@ -588,7 +612,7 @@ public final class TrackerFlowUi {
         shell.setTag(views);
         attachFieldReorder(reorder, container, fieldEditors, views, scheduleSave);
         DeleteGestureHelper.DeleteAction deleteGesture = (restore, animateDelete) -> confirmDeleteField(views, restore, animateDelete, removeNow);
-        DeleteGestureHelper.attachToTree(activity, theme, ui, shell, shell, deleteGesture, null, reorder);
+        DeleteGestureHelper.attachToTree(activity, theme, ui, summaryRow, shell, deleteGesture, null, reorder, menu, expand, views.summaryInput);
         setFieldExpanded(views, expand, field == null);
         return views;
     }
@@ -611,8 +635,30 @@ public final class TrackerFlowUi {
     private void setFieldExpanded(FieldEditorViews views, ImageView expand, boolean expanded) {
         views.summaryText.setVisibility(expanded ? View.GONE : View.VISIBLE);
         views.summaryInput.setVisibility(expanded ? View.VISIBLE : View.GONE);
-        views.editor.setVisibility(expanded ? View.VISIBLE : View.GONE);
-        expand.setRotation(expanded ? 180f : 0f);
+        animateFieldEditor(views.editor, expanded);
+        expand.animate().rotation(expanded ? 180f : 0f).setDuration(150).start();
+    }
+
+    private void animateFieldEditor(View editor, boolean expanded) {
+        if (!editor.isLaidOut()) {
+            editor.setVisibility(expanded ? View.VISIBLE : View.GONE);
+            editor.setAlpha(1f);
+            editor.setTranslationY(0f);
+            return;
+        }
+        if (expanded) {
+            editor.setVisibility(View.VISIBLE);
+            editor.setAlpha(0f);
+            editor.setTranslationY(-ui.spaceXs());
+            editor.animate().alpha(1f).translationY(0f).setDuration(150).start();
+        } else {
+            editor.animate()
+                    .alpha(0f)
+                    .translationY(-ui.spaceXs())
+                    .setDuration(150)
+                    .withEndAction(() -> editor.setVisibility(View.GONE))
+                    .start();
+        }
     }
 
     private void updateFieldSummary(FieldEditorViews views) {
@@ -938,11 +984,13 @@ public final class TrackerFlowUi {
 
     private void saveSessionFields(Session session, List<FieldDefinition> fieldDefinitions, Map<String, View> inputs) {
         Map<String, Object> values = readInputs(fieldDefinitions, inputs);
+        Map<Long, Map<String, Object>> valuesByFieldId = new LinkedHashMap<>();
         for (FieldDefinition field : fieldDefinitions) {
             Map<String, Object> fieldValue = new LinkedHashMap<>();
             fieldValue.put(field.key, values.get(field.key));
-            db.saveRecord(session, field.id, fieldValue);
+            valuesByFieldId.put(field.id, fieldValue);
         }
+        db.saveRecords(session, valuesByFieldId);
     }
 
     private void showTrackerMenu(View anchor, long trackerId, String trackerName) {

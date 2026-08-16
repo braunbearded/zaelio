@@ -17,6 +17,7 @@ public final class ThemeStore {
     private static final String KEY_ACCENT_INDEX = "accent_index";
     private static final String KEY_FONT_SCALE_INDEX = "font_scale_index";
     private static final String KEY_FIELD_SIZE_INDEX = "field_size_index";
+    private static final String KEY_SESSION_FIELDS_COLLAPSED = "session_fields_collapsed";
     private static final String KEY_LANGUAGE = "language";
 
     private static final int[] ACCENT_COLORS = {
@@ -170,6 +171,14 @@ public final class ThemeStore {
 
     public int fieldSizeCount() {
         return FIELD_SIZE_KEYS.length;
+    }
+
+    public boolean sessionFieldsCollapsed() {
+        return prefs.getBoolean(KEY_SESSION_FIELDS_COLLAPSED, false);
+    }
+
+    public void setSessionFieldsCollapsed(boolean collapsed) {
+        prefs.edit().putBoolean(KEY_SESSION_FIELDS_COLLAPSED, collapsed).apply();
     }
 
     public int accentSoftColor() {

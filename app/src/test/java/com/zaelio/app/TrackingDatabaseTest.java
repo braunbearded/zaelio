@@ -65,6 +65,23 @@ public class TrackingDatabaseTest {
     }
 
     @Test
+    public void saveRecordsWritesFieldsInOneCall() {
+        Tracker tracker = db.trackers().get(0);
+        long sessionId = db.createSession(tracker.id);
+        Session session = db.session(sessionId);
+        Map<Long, Map<String, Object>> valuesByFieldId = new HashMap<>();
+        for (FieldDefinition field : tracker.fields) {
+            Map<String, Object> values = new HashMap<>();
+            values.put(field.key, field.key);
+            valuesByFieldId.put(field.id, values);
+        }
+
+        db.saveRecords(session, valuesByFieldId);
+
+        assertEquals(tracker.fields.size(), db.recordCount(sessionId));
+    }
+
+    @Test
     public void deleteTrackerRemovesSessionsToo() {
         Tracker tracker = db.trackers().get(0);
         long sessionId = db.createSession(tracker.id);

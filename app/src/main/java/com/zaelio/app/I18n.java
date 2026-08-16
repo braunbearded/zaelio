@@ -36,6 +36,8 @@ public final class I18n {
         put("Export fehlgeschlagen: ", "Export failed: ", "Error al exportar: ");
         put("Export gespeichert", "Export saved", "Exportación guardada");
         put("Exportieren", "Export", "Exportar");
+        put("Ausgeklappt", "Expanded", "Expandido");
+        put("Eingeklappt", "Collapsed", "Plegado");
         put("Feld", "Field", "Campo");
         put("Feld hinzufügen", "Add field", "Añadir campo");
         put("Feld löschen", "Delete field", "Eliminar campo");
@@ -80,6 +82,7 @@ public final class I18n {
         put("Zusatzgewicht", "Additional weight", "Peso adicional");
         put("Sehr groß", "Very large", "Muy grande");
         put("Session", "Session", "Sesión");
+        put("Session-Felder beim Öffnen", "Session fields on open", "Campos de sesión al abrir");
         put("Session konnte nicht angelegt werden", "Could not create session", "No se pudo crear la sesión");
         put("Session löschen", "Delete session", "Eliminar sesión");
         put("Session nicht gefunden", "Session not found", "Sesión no encontrada");

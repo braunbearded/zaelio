@@ -26,6 +26,7 @@ final class DeleteGestureHelper {
     private static final int MARK_ANIMATION_MS = 80;
     private static final int LONG_PRESS_EXTRA_MS = 500;
     static final int REMOVE_AFTER_DELETE_MS = 170;
+    private static boolean dialogOpen;
 
     interface DeleteAction {
         void request(Runnable restore, Runnable animateDelete);
@@ -64,7 +65,7 @@ final class DeleteGestureHelper {
                 dragging[0] = false;
                 deleteStarted[0] = false;
                 pendingLongPress[0] = () -> {
-                    if (!dragging[0] && !deleteStarted[0]) {
+                    if (!dragging[0] && !deleteStarted[0] && touchView.isPressed()) {
                         deleteStarted[0] = true;
                         deleteAction.request(markDeleteCandidate(activity, theme, ui, targetView), () -> animateDelete(ui, targetView));
                     }
@@ -127,7 +128,15 @@ final class DeleteGestureHelper {
             delete.run();
             return;
         }
-        ui.confirmDelete(title, message, delete, restore);
+        if (dialogOpen) {
+            restore.run();
+            return;
+        }
+        dialogOpen = true;
+        ui.confirmDelete(title, message, delete, () -> {
+            dialogOpen = false;
+            restore.run();
+        });
     }
 
     private static Runnable markDeleteCandidate(Activity activity, ThemeStore theme, AppUi ui, View targetView) {

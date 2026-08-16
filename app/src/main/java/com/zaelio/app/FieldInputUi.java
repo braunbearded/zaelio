@@ -12,6 +12,7 @@ import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -43,6 +44,7 @@ final class FieldInputUi {
             Map<String, Object> values,
             Map<String, View> inputs,
             boolean readOnly,
+            boolean collapsed,
             Runnable onChange) {
         LinearLayout fieldBox = new LinearLayout(activity);
         fieldBox.setOrientation(LinearLayout.VERTICAL);
@@ -52,16 +54,30 @@ final class FieldInputUi {
         fieldBoxLp.bottomMargin = ui.spaceM();
         box.addView(fieldBox, fieldBoxLp);
 
+        TextView title = ui.titleText(fieldLabel(field));
+        ImageView expand = expandAction();
+        LinearLayout header = ui.listRow(null, title, expand);
+        header.setPadding(0, 0, 0, ui.spaceS());
+        fieldBox.addView(header);
+
+        LinearLayout content = new LinearLayout(activity);
+        content.setOrientation(LinearLayout.VERTICAL);
+        fieldBox.addView(content);
+        View.OnClickListener toggle = v -> setCollapsed(content, expand, content.getVisibility() == View.VISIBLE);
+        header.setOnClickListener(toggle);
+        expand.setOnClickListener(toggle);
+        setCollapsed(content, expand, collapsed);
+
         Object value = values.get(field.key);
         if ("string".equals(field.type)) {
-            stringControl(fieldBox, field, value, inputs, readOnly, onChange);
+            stringControl(content, field, value, inputs, readOnly, onChange);
             return;
         }
         if ("duration".equals(field.type)) {
-            timerControl(fieldBox, field, value, inputs, readOnly, onChange);
+            timerControl(content, field, value, inputs, readOnly, onChange);
             return;
         }
-        numericControl(fieldBox, field, value, inputs, readOnly, onChange);
+        numericControl(content, field, value, inputs, readOnly, onChange);
     }
 
     private void stringControl(LinearLayout fieldBox, FieldDefinition field, Object value, Map<String, View> inputs, boolean readOnly, Runnable onChange) {
@@ -116,7 +132,7 @@ final class FieldInputUi {
                 long current = (Long) display.getTag();
                 timers.put(field.key, System.currentTimeMillis() - current);
                 styleTimerToggle(toggle, true);
-                tick(display, field.key, onChange);
+                tick(display, field.key);
             }
             onChange.run();
         });
@@ -151,7 +167,6 @@ final class FieldInputUi {
             editText.setText("int".equals(field.type)
                     ? String.valueOf(Math.round(current))
                     : String.format(Locale.US, "%." + field.decimals + "f", current));
-            onChange.run();
         };
         minus.setOnClickListener(adjust);
         plus.setOnClickListener(adjust);
@@ -192,13 +207,47 @@ final class FieldInputUi {
         return field.label;
     }
 
+    private void setCollapsed(View content, ImageView expand, boolean collapsed) {
+        expand.animate().rotation(collapsed ? 0f : 180f).setDuration(150).start();
+        if (!content.isLaidOut()) {
+            content.setVisibility(collapsed ? View.GONE : View.VISIBLE);
+            content.setAlpha(1f);
+            content.setTranslationY(0f);
+            return;
+        }
+        if (collapsed) {
+            content.animate()
+                    .alpha(0f)
+                    .translationY(-ui.spaceXs())
+                    .setDuration(150)
+                    .withEndAction(() -> content.setVisibility(View.GONE))
+                    .start();
+        } else {
+            content.setVisibility(View.VISIBLE);
+            content.setAlpha(0f);
+            content.setTranslationY(-ui.spaceXs());
+            content.animate().alpha(1f).translationY(0f).setDuration(150).start();
+        }
+    }
+
+    private ImageView expandAction() {
+        ImageView view = new ImageView(activity);
+        view.setImageResource(R.drawable.ic_expand_more_24);
+        view.setColorFilter(theme.mutedTextColor());
+        view.setScaleType(ImageView.ScaleType.CENTER);
+        view.setMinimumHeight(ui.rowHeight());
+        view.setClickable(true);
+        view.setFocusable(true);
+        return view;
+    }
+
     private void styleTimerToggle(Button button, boolean running) {
         button.setText(running ? ui.t("Stop") : ui.t("Start"));
         button.setTextColor(running ? 0xffb42318 : Color.WHITE);
         button.setBackgroundTintList(ColorStateList.valueOf(running ? theme.cautionFillColor() : theme.accentColor()));
     }
 
-    private void tick(TextView display, String key, Runnable onChange) {
+    private void tick(TextView display, String key) {
         Long startedAt = timers.get(key);
         if (startedAt == null) {
             return;
@@ -207,13 +256,13 @@ final class FieldInputUi {
         long elapsed = System.currentTimeMillis() - startedAt;
         display.setTag(elapsed);
         display.setText(FormatUtil.formatMs(elapsed));
-        if (onChange != null) {
-            onChange.run();
-        }
-        handler.postDelayed(() -> tick(display, key, onChange), 500);
+        handler.postDelayed(() -> tick(display, key), 500);
     }
 
     private void hideKeyboard(View view) {
+        if (!view.hasFocus()) {
+            return;
+        }
         InputMethodManager inputMethodManager = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
         if (inputMethodManager != null) {
             inputMethodManager.hideSoftInputFromWindow(view.getWindowToken(), 0);

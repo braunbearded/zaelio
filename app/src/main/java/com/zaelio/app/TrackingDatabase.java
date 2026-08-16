@@ -312,6 +312,27 @@ final class TrackingDatabase extends SQLiteOpenHelper {
 
     void saveRecord(Session session, long fieldId, Map<String, Object> values) {
         long now = now();
+        SQLiteDatabase db = getWritableDatabase();
+        saveRecordRow(db, session, fieldId, values, now);
+        touchSession(db, session.id, now);
+    }
+
+    void saveRecords(Session session, Map<Long, Map<String, Object>> valuesByFieldId) {
+        long now = now();
+        SQLiteDatabase db = getWritableDatabase();
+        db.beginTransaction();
+        try {
+            for (Map.Entry<Long, Map<String, Object>> entry : valuesByFieldId.entrySet()) {
+                saveRecordRow(db, session, entry.getKey(), entry.getValue(), now);
+            }
+            touchSession(db, session.id, now);
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    private void saveRecordRow(SQLiteDatabase db, Session session, long fieldId, Map<String, Object> values, long now) {
         ContentValues valuesToSave = new ContentValues();
         valuesToSave.put("sessionId", session.id);
         valuesToSave.put("trackerId", session.trackerId);
@@ -320,15 +341,13 @@ final class TrackingDatabase extends SQLiteOpenHelper {
         valuesToSave.put("valuesJson", JsonUtil.stringify(values));
         valuesToSave.put("updatedAt", now);
         valuesToSave.put("createdAt", now);
-        getWritableDatabase().insertWithOnConflict(
-                "field_records",
-                null,
-                valuesToSave,
-                SQLiteDatabase.CONFLICT_REPLACE);
+        db.insertWithOnConflict("field_records", null, valuesToSave, SQLiteDatabase.CONFLICT_REPLACE);
+    }
 
+    private void touchSession(SQLiteDatabase db, long sessionId, long now) {
         ContentValues sessionValues = new ContentValues();
         sessionValues.put("updatedAt", now);
-        getWritableDatabase().update("sessions", sessionValues, "id=?", new String[]{String.valueOf(session.id)});
+        db.update("sessions", sessionValues, "id=?", new String[]{String.valueOf(sessionId)});
     }
 
     Object previousValue(long trackerId, long fieldId, String key) {

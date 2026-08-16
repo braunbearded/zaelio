@@ -10,12 +10,13 @@ Kontakt/Bugs: https://github.com/braunbearded/zaelio/issues
 
 - Eigene Tracker mit global sortierten Feldern erstellen; neue Elemente scrollen im Editor automatisch in den sichtbaren Bereich
 - Sessions erfassen und fortsetzen, mit großen Plus/Minus-Buttons und Material-Feldern für Text, Zahlen und Timer
+- Session-Felder minimal animiert ein-/ausklappen; Startzustand in den Einstellungen wählen
 - Listen-Einträge per Long-Press, Links-Swipe oder `...`-Menü löschen
 - Sessions und Tracker per Drag-Handle in der Übersicht sortieren
 - Android-Zurück navigiert sinnvoll; auf Home beendet erst ein schneller Doppel-Zurück-Druck die App
 - Werte lokal in SQLite speichern
 - Tracker, Sessions oder komplette Backups als JSON importieren/exportieren
-- Helles/dunkles Design, Schriftgröße, Akzentfarbe und globale Feldgröße einstellbar
+- Helles/dunkles Design, Schriftgröße, Akzentfarbe, globale Feldgröße und Session-Feld-Startzustand einstellbar
 - Kein Google Play Services, kein Firebase, keine Cloud
 
 ## 📱 Screenshots
@@ -144,7 +145,7 @@ Details: `docs/fdroid.md`
 ```text
 app/src/main/java/com/zaelio/app/
 ├── MainActivity.java              # Routing, Lifecycle, Top Bar, Navigation
-├── TrackingDatabase.java          # SQLite Schema v6, Migrationen, Datenzugriff
+├── TrackingDatabase.java          # SQLite Schema v8, Migrationen, Datenzugriff
 ├── TrackerJsonRepository.java     # JSON Import/Export und Tracker-Speicherung
 ├── BackupJsonRepository.java      # JSON Backup für Tracker, Sessions und Werte
 ├── JsonUtil.java                  # JSON-Helfer
@@ -153,8 +154,8 @@ app/src/main/java/com/zaelio/app/
 ├── HomeUi.java                    # Session-/Tracker-Übersicht
 ├── ReorderHelper.java             # Gemeinsames Drag-Reorder-Verhalten
 ├── TrackerFlowUi.java             # Tracker-Editor und Session-Routing
-├── FieldInputUi.java              # Eingabefelder, Timer und Zahlensteuerung
-├── theme/ThemeStore.java          # Theme, Akzentfarbe, Schrift- und Feldgröße
+├── FieldInputUi.java              # Eingabefelder, Timer, Zahlensteuerung und einklappbare Session-Felder
+├── theme/ThemeStore.java          # Theme, Akzentfarbe, Schrift-/Feldgröße und Session-Feld-Startzustand
 └── ui/
     ├── AppUi.java                 # Gemeinsame UI-Bausteine
     └── SettingsUi.java            # Einstellungen und Über-Screen
@@ -171,7 +172,7 @@ Lokale Unit-Tests laufen mit JUnit und Robolectric:
 Aktueller Fokus:
 
 - `JsonUtilTest` prüft JSON-Roundtrips und Tracker-Export.
-- `TrackingDatabaseTest` prüft Seed-Daten, Sessions, Records, Previous Values, Löschlogik, Übersichtssortierung und Migration auf Schema v6.
+- `TrackingDatabaseTest` prüft Seed-Daten, Sessions, Records, Previous Values, Löschlogik, Batch-Speicherung, Übersichtssortierung und Migration auf Schema v8.
 - `BackupJsonRepositoryTest` prüft alle Backup-Export/Import-Varianten gegen Beispiel-JSON unter `app/src/test/resources/backup-fixtures/`.
 
 Zusätzlicher Build-Check:

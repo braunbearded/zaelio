@@ -40,6 +40,7 @@ public final class SettingsUi {
         box.addView(languageCard(), cardLp());
         box.addView(fontCard(), cardLp());
         box.addView(fieldSizeCard(), cardLp());
+        box.addView(sessionFieldStateCard(), cardLp());
         box.addView(accentCard(), cardLp());
     }
 
@@ -121,6 +122,12 @@ public final class SettingsUi {
                 i -> ui.t(theme.fieldSizeName(i)), theme::setFieldSizeIndex);
         card.addView(fieldSizePreview());
         return card;
+    }
+
+    private View sessionFieldStateCard() {
+        String[] labels = {"Ausgeklappt", "Eingeklappt"};
+        return choiceCard("Session-Felder beim Öffnen", labels.length, theme.sessionFieldsCollapsed() ? 1 : 0, 9300,
+                i -> ui.t(labels[i]), i -> theme.setSessionFieldsCollapsed(i == 1));
     }
 
     private View fieldSizePreview() {
