@@ -7,9 +7,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.Toast;
 
 import com.zaelio.app.theme.ThemeStore;
@@ -95,7 +97,25 @@ public class MainActivity extends Activity {
     }
 
     private void refreshSettings() {
-        showSettingsScreen();
+        int scrollY = currentScrollY(root);
+        ViewGroup parent = (ViewGroup) root.getParent();
+        if (parent == null) {
+            return;
+        }
+
+        LinearLayout oldRoot = root;
+        LinearLayout newRoot = new LinearLayout(this);
+        newRoot.setOrientation(LinearLayout.VERTICAL);
+        newRoot.setBackgroundColor(theme.backgroundColor());
+        newRoot.setAlpha(0f);
+        settingsUi.render(newRoot);
+        parent.addView(newRoot, oldRoot.getLayoutParams());
+        restoreScrollY(newRoot, scrollY);
+
+        newRoot.animate().alpha(1f).setDuration(120).withEndAction(() -> {
+            parent.removeView(oldRoot);
+            root = newRoot;
+        }).start();
     }
 
     private void setBackAction(Runnable backAction) {
@@ -245,6 +265,34 @@ public class MainActivity extends Activity {
         setBackAction(this::refreshHome);
         base();
         settingsUi.render(root);
+    }
+
+    private void restoreScrollY(View view, int scrollY) {
+        ScrollView scrollView = firstScrollView(view);
+        if (scrollView != null && scrollY > 0) {
+            scrollView.post(() -> scrollView.scrollTo(0, scrollY));
+        }
+    }
+
+    private int currentScrollY(View view) {
+        ScrollView scrollView = firstScrollView(view);
+        return scrollView == null ? 0 : scrollView.getScrollY();
+    }
+
+    private ScrollView firstScrollView(View view) {
+        if (view instanceof ScrollView) {
+            return (ScrollView) view;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                ScrollView scrollView = firstScrollView(group.getChildAt(i));
+                if (scrollView != null) {
+                    return scrollView;
+                }
+            }
+        }
+        return null;
     }
 
     private void showAboutScreen() {

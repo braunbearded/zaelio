@@ -6,7 +6,6 @@ import android.content.res.ColorStateList;
 import android.net.Uri;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -102,26 +101,31 @@ public final class SettingsUi {
         int[] modes = {ThemeStore.THEME_SYSTEM, ThemeStore.THEME_LIGHT, ThemeStore.THEME_DARK};
         String[] labels = {"System", "Hell", "Dunkel"};
         return choiceCard("Darstellung", modes.length, selectedIndex(modes, theme.themeMode()), 9000,
-                i -> ui.t(labels[i]), i -> theme.setThemeMode(modes[i]));
+                i -> ui.t(labels[i]), i -> theme.setThemeMode(modes[i]), refreshSettings);
     }
 
     private View languageCard() {
         String[] languages = {I18n.SYSTEM, I18n.GERMAN, I18n.ENGLISH, I18n.SPANISH};
         String[] labels = {"System", "Deutsch", "English", "Spanisch"};
         return choiceCard("Sprache", languages.length, selectedIndex(languages, theme.language()), 9050,
-                i -> ui.t(labels[i]), i -> theme.setLanguage(languages[i]));
+                i -> ui.t(labels[i]), i -> theme.setLanguage(languages[i]), refreshSettings);
     }
 
     private View fontCard() {
         return choiceCard("Schriftgröße", theme.fontScaleCount(), theme.fontScaleIndex(), 9100,
-                i -> ui.t(theme.fontScaleName(i)), theme::setFontScaleIndex);
+                i -> ui.t(theme.fontScaleName(i)), theme::setFontScaleIndex, refreshSettings);
     }
 
     private View fieldSizeCard() {
-        LinearLayout card = (LinearLayout) choiceCard("Feldgröße", theme.fieldSizeCount(), theme.fieldSizeIndex(), 9200,
-                i -> ui.t(theme.fieldSizeName(i)), theme::setFieldSizeIndex);
-        card.addView(fieldSizePreview());
-        return card;
+        final LinearLayout[] cardRef = new LinearLayout[1];
+        cardRef[0] = (LinearLayout) choiceCard("Feldgröße", theme.fieldSizeCount(), theme.fieldSizeIndex(), 9200,
+                i -> ui.t(theme.fieldSizeName(i)), theme::setFieldSizeIndex, () -> {
+                    LinearLayout card = cardRef[0];
+                    card.removeViewAt(card.getChildCount() - 1);
+                    card.addView(fieldSizePreview());
+                });
+        cardRef[0].addView(fieldSizePreview());
+        return cardRef[0];
     }
 
     private View sessionFieldStateCard() {
@@ -162,6 +166,10 @@ public final class SettingsUi {
     }
 
     private View choiceCard(String title, int count, int selected, int idBase, IntFunction<String> labelAt, IntConsumer selectAt) {
+        return choiceCard(title, count, selected, idBase, labelAt, selectAt, null);
+    }
+
+    private View choiceCard(String title, int count, int selected, int idBase, IntFunction<String> labelAt, IntConsumer selectAt, Runnable afterSelect) {
         LinearLayout card = ui.contentCard();
         ui.addSectionHeader(card, title, null);
 
@@ -177,7 +185,10 @@ public final class SettingsUi {
         group.setOnCheckedStateChangeListener((chipGroup, checkedIds) -> {
             if (!checkedIds.isEmpty()) {
                 selectAt.accept(checkedIds.get(0) - idBase);
-                refreshSettings.run();
+                styleChoiceGroup(chipGroup);
+                if (afterSelect != null) {
+                    afterSelect.run();
+                }
             }
         });
         card.addView(group);
@@ -225,48 +236,46 @@ public final class SettingsUi {
         chip.setElevation(0);
     }
 
+    private void styleChoiceGroup(ChipGroup group) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof Chip) {
+                styleChoiceChip((Chip) child, ((Chip) child).isChecked());
+            }
+        }
+    }
+
     private View accentCard() {
         LinearLayout card = ui.contentCard();
         ui.addSectionHeader(card, "Akzentfarbe", null);
 
-        for (int rowIndex = 0; rowIndex < 2; rowIndex++) {
-            LinearLayout row = new LinearLayout(activity);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setWeightSum(4);
-            row.setPadding(0, 0, 0, ui.spaceSm());
-
-            for (int col = 0; col < 4; col++) {
-                int index = rowIndex * 4 + col;
-                LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(0, -2, 1f);
-                cellLp.leftMargin = col == 0 ? 0 : ui.spaceXs();
-                cellLp.rightMargin = col == 3 ? 0 : ui.spaceXs();
-                if (index >= theme.accentCount()) {
-                    View spacer = new View(activity);
-                    row.addView(spacer, cellLp);
-                    continue;
-                }
-                row.addView(accentOption(index), cellLp);
-            }
-            card.addView(row);
+        ChipGroup group = new ChipGroup(activity);
+        group.setSingleSelection(true);
+        group.setSelectionRequired(true);
+        group.setChipSpacingHorizontal(ui.spaceS());
+        group.setChipSpacingVertical(ui.spaceS());
+        for (int i = 0; i < theme.accentCount(); i++) {
+            group.addView(accentChip(9400 + i, i));
         }
+        group.check(9400 + theme.accentIndex());
+        group.setOnCheckedStateChangeListener((chipGroup, checkedIds) -> {
+            if (!checkedIds.isEmpty()) {
+                theme.setAccentIndex(checkedIds.get(0) - 9400);
+                refreshSettings.run();
+            }
+        });
+        card.addView(group);
         return card;
     }
 
-    private Button accentOption(int index) {
-        boolean selected = theme.accentIndex() == index;
+    private Chip accentChip(int id, int index) {
+        Chip chip = choiceChip(id, ui.t(theme.accentName(index)), index == theme.accentIndex());
         int accent = theme.accentColor(index);
-        int fillColor = selected ? accent : theme.accentSoftColor(index);
-        Button button = ui.button(theme.accentName(index), fillColor, selected ? android.graphics.Color.WHITE : accent, accent);
-        button.setTextSize(ui.sp(12));
-        button.setSingleLine(true);
-        button.setMinHeight(ui.buttonHeight());
-        button.setMinimumHeight(ui.buttonHeight());
-        button.setElevation(selected ? ui.spaceXs() : 0);
-        button.setOnClickListener(v -> {
-            theme.setAccentIndex(index);
-            refreshSettings.run();
-        });
-        return button;
+        boolean selected = index == theme.accentIndex();
+        chip.setTextColor(selected ? android.graphics.Color.WHITE : accent);
+        chip.setChipBackgroundColor(ColorStateList.valueOf(selected ? accent : theme.accentSoftColor(index)));
+        chip.setChipStrokeColor(ColorStateList.valueOf(accent));
+        return chip;
     }
 
     private void openUrl(String url) {
