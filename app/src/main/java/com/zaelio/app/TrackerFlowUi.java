@@ -919,7 +919,7 @@ public final class TrackerFlowUi {
         footer.setOrientation(LinearLayout.VERTICAL);
         footer.setPadding(ui.spaceL(), ui.spaceS(), ui.spaceL(), ui.spaceL());
 
-        Button button = ui.secondaryButton(text);
+        Button button = ui.backButton(text);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
         button.setLayoutParams(lp);
         button.setOnClickListener(v -> {

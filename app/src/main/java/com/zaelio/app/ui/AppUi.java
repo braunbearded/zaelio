@@ -135,6 +135,10 @@ public final class AppUi {
         return button(text, theme.cautionFillColor(), 0xffb42318, theme.cautionStrokeColor());
     }
 
+    public Button backButton(String text) {
+        return button(text, theme.surfaceColor(), theme.accentColor(), theme.accentColor());
+    }
+
     public View bottomNav(boolean sessionsSelected, View.OnClickListener onSessions, View.OnClickListener onTracker) {
         LinearLayout nav = new LinearLayout(activity);
         nav.setOrientation(LinearLayout.HORIZONTAL);
@@ -229,7 +233,7 @@ public final class AppUi {
         bar.setElevation(strokeWidth());
 
         if (showBack) {
-            bar.addView(iconButton(R.drawable.ic_arrow_back_24, t("Zurück"), v -> {
+            bar.addView(iconButton(R.drawable.ic_arrow_back_24, t("Zurück"), theme.accentColor(), v -> {
                 if (onBack != null) {
                     onBack.run();
                 }
@@ -240,7 +244,7 @@ public final class AppUi {
         title.setText(t(titleText));
         title.setTextSize(sp(20));
         title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setTextColor(theme.primaryTextColor());
+        title.setTextColor(theme.accentColor());
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, -2, 1f);
         titleLp.leftMargin = showBack ? spaceM() : 0;
         bar.addView(title, titleLp);
@@ -254,11 +258,15 @@ public final class AppUi {
     }
 
     private MaterialButton iconButton(int iconRes, String contentDescription, View.OnClickListener onClick) {
+        return iconButton(iconRes, contentDescription, theme.primaryTextColor(), onClick);
+    }
+
+    private MaterialButton iconButton(int iconRes, String contentDescription, int iconColor, View.OnClickListener onClick) {
         MaterialButton button = new MaterialButton(activity);
         button.setText("");
         button.setAllCaps(false);
         button.setIcon(activity.getDrawable(iconRes));
-        button.setIconTint(ColorStateList.valueOf(theme.primaryTextColor()));
+        button.setIconTint(ColorStateList.valueOf(iconColor));
         button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
         button.setIconPadding(0);
         button.setBackgroundTintList(ColorStateList.valueOf(theme.surfaceAltColor()));
@@ -328,7 +336,7 @@ public final class AppUi {
         if (onBack != null) {
             LinearLayout footer = new LinearLayout(activity);
             footer.setPadding(spaceL(), spaceS(), spaceL(), spaceL());
-            Button button = secondaryButton(t("Zurück"));
+            Button button = backButton("Zurück");
             button.setOnClickListener(v -> onBack.run());
             footer.addView(button, new LinearLayout.LayoutParams(-1, -2));
             root.addView(footer);
