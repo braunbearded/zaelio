@@ -55,7 +55,9 @@ public class TrackingDatabaseTest {
         Map<String, Object> values = new HashMap<>();
         values.put(reps.key, 10);
 
-        db.saveRecord(session, reps.id, values);
+        Map<Long, Map<String, Object>> valuesByFieldId = new HashMap<>();
+        valuesByFieldId.put(reps.id, values);
+        db.saveRecords(session, valuesByFieldId);
 
         assertEquals(1, db.recordCount(sessionId));
         assertEquals(10, ((Number) db.previousValue(tracker.id, reps.id, reps.key)).intValue());
@@ -79,6 +81,27 @@ public class TrackingDatabaseTest {
         db.saveRecords(session, valuesByFieldId);
 
         assertEquals(tracker.fields.size(), db.recordCount(sessionId));
+    }
+
+    @Test
+    public void saveRecordsReplacesExistingFieldRecord() {
+        Tracker tracker = db.trackers().get(0);
+        FieldDefinition reps = tracker.fields.get(0);
+        Session session = db.session(db.createSession(tracker.id));
+        Map<String, Object> first = new HashMap<>();
+        first.put(reps.key, 10);
+        Map<Long, Map<String, Object>> firstSave = new HashMap<>();
+        firstSave.put(reps.id, first);
+        db.saveRecords(session, firstSave);
+
+        Map<String, Object> second = new HashMap<>();
+        second.put(reps.key, 12);
+        Map<Long, Map<String, Object>> secondSave = new HashMap<>();
+        secondSave.put(reps.id, second);
+        db.saveRecords(session, secondSave);
+
+        assertEquals(1, db.recordCount(session.id));
+        assertEquals(12, ((Number) db.previousValue(tracker.id, reps.id, reps.key)).intValue());
     }
 
     @Test

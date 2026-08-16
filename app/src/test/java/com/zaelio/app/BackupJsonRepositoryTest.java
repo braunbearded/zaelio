@@ -45,7 +45,9 @@ public class BackupJsonRepositoryTest {
         Session session = db.session(db.createSession(tracker.id));
         Map<String, Object> values = new HashMap<>();
         values.put(field.key, 15);
-        db.saveRecord(session, field.id, values);
+        Map<Long, Map<String, Object>> valuesByFieldId = new HashMap<>();
+        valuesByFieldId.put(field.id, values);
+        db.saveRecords(session, valuesByFieldId);
 
         JSONObject export = new JSONObject(BackupJsonRepository.exportAll(db));
 
@@ -62,7 +64,9 @@ public class BackupJsonRepositoryTest {
         Session session = db.session(db.createSession(tracker.id));
         Map<String, Object> values = new HashMap<>();
         values.put(field.key, 20);
-        db.saveRecord(session, field.id, values);
+        Map<Long, Map<String, Object>> valuesByFieldId = new HashMap<>();
+        valuesByFieldId.put(field.id, values);
+        db.saveRecords(session, valuesByFieldId);
         String json = BackupJsonRepository.exportAll(db);
 
         db.deleteTracker(tracker.id);

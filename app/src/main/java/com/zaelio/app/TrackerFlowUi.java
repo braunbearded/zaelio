@@ -38,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import org.json.JSONArray;
@@ -377,52 +378,6 @@ public final class TrackerFlowUi {
         return values;
     }
 
-    private long toLong(Object value) {
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        try {
-            return Long.parseLong(String.valueOf(value));
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private double toDouble(Object value) {
-        if (value instanceof Number) {
-            return ((Number) value).doubleValue();
-        }
-        try {
-            return Double.parseDouble(String.valueOf(value));
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-
-    private String summaryText(Map<String, Object> values, List<FieldDefinition> fieldDefinitions) {
-        StringBuilder builder = new StringBuilder();
-        for (FieldDefinition field : fieldDefinitions) {
-            if (builder.length() > 0) {
-                builder.append("\n");
-            }
-            builder.append(field.label).append(": ");
-
-            Object value = values.get(field.key);
-            if (value == null || String.valueOf(value).isEmpty()) {
-                builder.append("—");
-            } else if ("duration".equals(field.type)) {
-                builder.append(FormatUtil.formatMs(toLong(value)));
-            } else if ("float".equals(field.type)) {
-                builder.append(String.format(Locale.US, "%." + field.decimals + "f", toDouble(value)));
-            } else {
-                builder.append(String.valueOf(value));
-            }
-
-        }
-        return builder.toString();
-    }
-
     private Tracker templateTracker() {
         Tracker tracker = new Tracker();
         tracker.name = "";
@@ -599,7 +554,7 @@ public final class TrackerFlowUi {
         summaryText.setOnClickListener(toggle);
         views.summaryTitle.setOnClickListener(toggle);
         views.summaryMeta.setOnClickListener(toggle);
-        LinearLayout shell = reorderShell(reorder, row);
+        LinearLayout shell = row;
         shellRef[0] = shell;
 
         LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
@@ -611,7 +566,7 @@ public final class TrackerFlowUi {
         fieldEditors.add(views);
         shell.setTag(views);
         attachFieldReorder(reorder, container, fieldEditors, views, scheduleSave);
-        DeleteGestureHelper.DeleteAction deleteGesture = (restore, animateDelete) -> confirmDeleteField(views, restore, animateDelete, removeNow);
+        BiConsumer<Runnable, Runnable> deleteGesture = (restore, animateDelete) -> confirmDeleteField(views, restore, animateDelete, removeNow);
         DeleteGestureHelper.attachToTree(activity, theme, ui, summaryRow, shell, deleteGesture, null, reorder, menu, expand, views.summaryInput);
         setFieldExpanded(views, expand, field == null);
         return views;
@@ -635,30 +590,8 @@ public final class TrackerFlowUi {
     private void setFieldExpanded(FieldEditorViews views, ImageView expand, boolean expanded) {
         views.summaryText.setVisibility(expanded ? View.GONE : View.VISIBLE);
         views.summaryInput.setVisibility(expanded ? View.VISIBLE : View.GONE);
-        animateFieldEditor(views.editor, expanded);
+        ui.animateCollapse(views.editor, !expanded);
         expand.animate().rotation(expanded ? 180f : 0f).setDuration(150).start();
-    }
-
-    private void animateFieldEditor(View editor, boolean expanded) {
-        if (!editor.isLaidOut()) {
-            editor.setVisibility(expanded ? View.VISIBLE : View.GONE);
-            editor.setAlpha(1f);
-            editor.setTranslationY(0f);
-            return;
-        }
-        if (expanded) {
-            editor.setVisibility(View.VISIBLE);
-            editor.setAlpha(0f);
-            editor.setTranslationY(-ui.spaceXs());
-            editor.animate().alpha(1f).translationY(0f).setDuration(150).start();
-        } else {
-            editor.animate()
-                    .alpha(0f)
-                    .translationY(-ui.spaceXs())
-                    .setDuration(150)
-                    .withEndAction(() -> editor.setVisibility(View.GONE))
-                    .start();
-        }
     }
 
     private void updateFieldSummary(FieldEditorViews views) {
@@ -677,16 +610,12 @@ public final class TrackerFlowUi {
         field.key = views.keyInput.getText().toString();
         field.label = views.labelInput.getText().toString();
         field.defaultValue = views.defaultValueInput.getText().toString();
-        field.increment = parseDoubleSafe(views.incrementInput.getText().toString(), 1);
+        field.increment = FormatUtil.parseDouble(views.incrementInput.getText().toString(), 1);
         field.decimals = parseIntSafe(views.decimalsInput.getText().toString(), 1);
         field.type = selectedType(views.typeInput);
         field.required = views.requiredCheck.isChecked();
         field.prefillFromPrevious = views.prefillCheck.isChecked();
         return field;
-    }
-
-    private LinearLayout reorderShell(View reorder, View content) {
-        return (LinearLayout) content;
     }
 
     private View reorderHandle() {
@@ -757,19 +686,6 @@ public final class TrackerFlowUi {
         }
     }
 
-    private LinearLayout wrapLabeledView(String label, View view) {
-        LinearLayout group = new LinearLayout(activity);
-        group.setOrientation(LinearLayout.VERTICAL);
-        TextView title = new TextView(activity);
-        title.setText(ui.t(label));
-        title.setTextSize(ui.sp(12));
-        title.setTextColor(theme.mutedTextColor());
-        title.setPadding(0, 0, 0, ui.spaceXs());
-        group.addView(title);
-        group.addView(view);
-        return group;
-    }
-
     private void styleCheckBox(MaterialCheckBox checkBox) {
         checkBox.setUseMaterialThemeColors(false);
         checkBox.setTextColor(theme.primaryTextColor());
@@ -819,18 +735,6 @@ public final class TrackerFlowUi {
                         new int[]{}
                 },
                 new int[]{accent, accent, normal, normal});
-    }
-
-    private ColorStateList accentStateList() {
-        int accent = theme.accentColor();
-        return new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_hovered},
-                        new int[]{android.R.attr.state_focused},
-                        new int[]{android.R.attr.state_enabled},
-                        new int[]{}
-                },
-                new int[]{accent, accent, accent, accent});
     }
 
     private void tintCursor(EditText input) {
@@ -888,7 +792,7 @@ public final class TrackerFlowUi {
 
             String defaultValue = fieldViews.defaultValueInput.getText().toString().trim();
             field.put("defaultValue", defaultValue.isEmpty() ? JSONObject.NULL : defaultValue);
-            field.put("increment", parseDoubleSafe(fieldViews.incrementInput.getText().toString(), 1));
+            field.put("increment", FormatUtil.parseDouble(fieldViews.incrementInput.getText().toString(), 1));
             field.put("decimals", parseIntSafe(fieldViews.decimalsInput.getText().toString(), 1));
             field.put("required", fieldViews.requiredCheck.isChecked());
             field.put("prefillFromPrevious", fieldViews.prefillCheck.isChecked());
@@ -919,14 +823,6 @@ public final class TrackerFlowUi {
     private int parseIntSafe(String value, int fallback) {
         try {
             return Integer.parseInt(value.trim());
-        } catch (Exception e) {
-            return fallback;
-        }
-    }
-
-    private double parseDoubleSafe(String value, double fallback) {
-        try {
-            return Double.parseDouble(value.trim());
         } catch (Exception e) {
             return fallback;
         }

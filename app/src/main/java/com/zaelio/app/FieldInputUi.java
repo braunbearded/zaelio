@@ -95,13 +95,13 @@ final class FieldInputUi {
     }
 
     private void timerControl(LinearLayout fieldBox, FieldDefinition field, Object value, Map<String, View> inputs, boolean readOnly, Runnable onChange) {
-        EditText display = styledEditText(FormatUtil.formatMs(toLong(value)));
+        EditText display = styledEditText(FormatUtil.formatMs(FormatUtil.toLong(value)));
         display.setTextSize(ui.sp(18));
         display.setPadding(ui.spaceM(), ui.spaceM(), ui.spaceM(), ui.spaceM());
         display.setFocusable(false);
         display.setCursorVisible(false);
         display.setInputType(InputType.TYPE_NULL);
-        display.setTag(toLong(value));
+        display.setTag(FormatUtil.toLong(value));
         int timerHeight = numericHeight();
         LinearLayout.LayoutParams displayLp = new LinearLayout.LayoutParams(-1, -2);
         displayLp.bottomMargin = ui.spaceS();
@@ -159,7 +159,7 @@ final class FieldInputUi {
 
         View.OnClickListener adjust = v -> {
             hideKeyboard(editText);
-            double current = parseDoubleSafe(editText.getText().toString(), 0);
+            double current = FormatUtil.parseDouble(editText.getText().toString(), 0);
             current += v == plus ? field.increment : -field.increment;
             editText.setText("int".equals(field.type)
                     ? String.valueOf(Math.round(current))
@@ -206,25 +206,7 @@ final class FieldInputUi {
 
     private void setCollapsed(View content, ImageView expand, boolean collapsed) {
         expand.animate().rotation(collapsed ? 0f : 180f).setDuration(150).start();
-        if (!content.isLaidOut()) {
-            content.setVisibility(collapsed ? View.GONE : View.VISIBLE);
-            content.setAlpha(1f);
-            content.setTranslationY(0f);
-            return;
-        }
-        if (collapsed) {
-            content.animate()
-                    .alpha(0f)
-                    .translationY(-ui.spaceXs())
-                    .setDuration(150)
-                    .withEndAction(() -> content.setVisibility(View.GONE))
-                    .start();
-        } else {
-            content.setVisibility(View.VISIBLE);
-            content.setAlpha(0f);
-            content.setTranslationY(-ui.spaceXs());
-            content.animate().alpha(1f).translationY(0f).setDuration(150).start();
-        }
+        ui.animateCollapse(content, collapsed);
     }
 
     private void styleTimerToggle(Button button, boolean running) {
@@ -270,25 +252,6 @@ final class FieldInputUi {
     private int numericHeight() {
         String size = theme.fieldSize();
         return ui.px("large".equals(size) ? 64 : "compact".equals(size) ? 48 : 56);
-    }
-
-    private long toLong(Object value) {
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        try {
-            return Long.parseLong(String.valueOf(value));
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private double parseDoubleSafe(String text, double fallback) {
-        try {
-            return Double.parseDouble(text);
-        } catch (Exception e) {
-            return fallback;
-        }
     }
 
 }

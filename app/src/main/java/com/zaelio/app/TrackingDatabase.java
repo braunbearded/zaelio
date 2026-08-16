@@ -310,13 +310,6 @@ final class TrackingDatabase extends SQLiteOpenHelper {
         return records;
     }
 
-    void saveRecord(Session session, long fieldId, Map<String, Object> values) {
-        long now = now();
-        SQLiteDatabase db = getWritableDatabase();
-        saveRecordRow(db, session, fieldId, values, now);
-        touchSession(db, session.id, now);
-    }
-
     void saveRecords(Session session, Map<Long, Map<String, Object>> valuesByFieldId) {
         long now = now();
         SQLiteDatabase db = getWritableDatabase();

@@ -11,6 +11,7 @@ import android.widget.TextView;
 import com.zaelio.app.theme.ThemeStore;
 import com.zaelio.app.ui.AppUi;
 
+import java.util.function.BiConsumer;
 import java.util.function.LongConsumer;
 
 public final class HomeUi {
@@ -101,7 +102,7 @@ public final class HomeUi {
     }
 
     private LinearLayout overviewCard(String title, String meta, String previewText, Runnable open,
-                                      Runnable duplicateAction, DeleteGestureHelper.DeleteAction deleteAction,
+                                      Runnable duplicateAction, BiConsumer<Runnable, Runnable> deleteAction,
                                       LinearLayout reorderContainer, Runnable onReorder) {
         LinearLayout card = createCard();
         card.setOrientation(LinearLayout.HORIZONTAL);
@@ -128,7 +129,7 @@ public final class HomeUi {
         content.addView(preview);
 
         TextView menu = ui.listIcon("...");
-        menu.setOnClickListener(v -> showCardMenu(menu, duplicateAction, () -> deleteAction.request(null, () -> DeleteGestureHelper.animateDelete(ui, card))));
+        menu.setOnClickListener(v -> showCardMenu(menu, duplicateAction, () -> deleteAction.accept(null, () -> DeleteGestureHelper.animateDelete(ui, card))));
 
         TextView arrow = ui.listIcon("›");
         arrow.setOnClickListener(v -> open.run());

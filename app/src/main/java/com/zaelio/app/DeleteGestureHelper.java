@@ -17,6 +17,8 @@ import android.widget.TextView;
 import com.zaelio.app.theme.ThemeStore;
 import com.zaelio.app.ui.AppUi;
 
+import java.util.function.BiConsumer;
+
 final class DeleteGestureHelper {
     private static final int DELETE_SWIPE_LEFT_DP = 180;
     private static final int DELETE_SWIPE_RIGHT_DP = 60;
@@ -28,15 +30,11 @@ final class DeleteGestureHelper {
     static final int REMOVE_AFTER_DELETE_MS = 170;
     private static boolean dialogOpen;
 
-    interface DeleteAction {
-        void request(Runnable restore, Runnable animateDelete);
-    }
-
     private DeleteGestureHelper() {
     }
 
     static void attachToTree(Activity activity, ThemeStore theme, AppUi ui, View rootView, View targetView,
-                             DeleteAction deleteAction, boolean[] skipClick, View... excluded) {
+                             BiConsumer<Runnable, Runnable> deleteAction, boolean[] skipClick, View... excluded) {
         if (isExcluded(rootView, excluded)) {
             return;
         }
@@ -50,7 +48,7 @@ final class DeleteGestureHelper {
     }
 
     static void attach(Activity activity, ThemeStore theme, AppUi ui, View touchView, View targetView,
-                       DeleteAction deleteAction, boolean[] skipClick) {
+                       BiConsumer<Runnable, Runnable> deleteAction, boolean[] skipClick) {
         final float[] downX = new float[1];
         final float[] downY = new float[1];
         final boolean[] dragging = new boolean[1];
@@ -67,7 +65,7 @@ final class DeleteGestureHelper {
                 pendingLongPress[0] = () -> {
                     if (!dragging[0] && !deleteStarted[0] && touchView.isPressed()) {
                         deleteStarted[0] = true;
-                        deleteAction.request(markDeleteCandidate(activity, theme, ui, targetView), () -> animateDelete(ui, targetView));
+                        deleteAction.accept(markDeleteCandidate(activity, theme, ui, targetView), () -> animateDelete(ui, targetView));
                     }
                 };
                 touchView.postDelayed(pendingLongPress[0], android.view.ViewConfiguration.getLongPressTimeout() + LONG_PRESS_EXTRA_MS);
@@ -93,7 +91,7 @@ final class DeleteGestureHelper {
                     }
                     if (!deleteStarted[0] && dx < -ui.px(DELETE_SWIPE_TRIGGER_DP) && Math.abs(dx) > Math.abs(dy) * 1.5f) {
                         deleteStarted[0] = true;
-                        deleteAction.request(markDeleteCandidate(activity, theme, ui, targetView), () -> animateDelete(ui, targetView));
+                        deleteAction.accept(markDeleteCandidate(activity, theme, ui, targetView), () -> animateDelete(ui, targetView));
                     }
                     return true;
                 }

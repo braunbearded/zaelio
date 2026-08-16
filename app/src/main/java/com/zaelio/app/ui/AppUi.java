@@ -432,6 +432,28 @@ public final class AppUi {
         return view;
     }
 
+    public void animateCollapse(View content, boolean collapsed) {
+        if (!content.isLaidOut()) {
+            content.setVisibility(collapsed ? View.GONE : View.VISIBLE);
+            content.setAlpha(1f);
+            content.setTranslationY(0f);
+            return;
+        }
+        if (collapsed) {
+            content.animate()
+                    .alpha(0f)
+                    .translationY(-spaceXs())
+                    .setDuration(150)
+                    .withEndAction(() -> content.setVisibility(View.GONE))
+                    .start();
+        } else {
+            content.setVisibility(View.VISIBLE);
+            content.setAlpha(0f);
+            content.setTranslationY(-spaceXs());
+            content.animate().alpha(1f).translationY(0f).setDuration(150).start();
+        }
+    }
+
     public androidx.appcompat.app.AlertDialog showCardDialog(View content) {
         androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(activity)
                 .setView(content)
