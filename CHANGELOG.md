@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.8
+
+- Improved F-Droid metadata, changelogs, and screenshots.
+- Release script now creates Fastlane changelogs automatically.
+
 ## 1.0.7
 
 - Improved session input performance with debounced, batched field saves.
