@@ -1,0 +1,2 @@
+Language selection and multilingual UI support added.
+F-Droid Fastlane icon metadata added.

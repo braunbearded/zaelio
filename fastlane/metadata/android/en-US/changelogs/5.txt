@@ -1,0 +1,3 @@
+Release builds now use JDK 21 to match the F-Droid build server.
+Signing-key verification added to the GitHub release workflow and release script.
+Local F-Droid reproducible-build check helper added.

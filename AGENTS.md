@@ -124,11 +124,12 @@ Manual flow:
 
 1. Increase `versionCode` and `versionName` in `app/build.gradle`.
 2. Update `CHANGELOG.md` with user-visible changes.
-3. Run `./gradlew testDebugUnitTest` and, for release-impacting changes, `./gradlew assembleDebug` or `./gradlew assembleRelease`.
-4. Commit the version change, then create a matching tag such as `v1.1.0`.
-5. Push the branch and tag; the tag triggers `.github/workflows/release.yml` to build and attach the signed APK to a GitHub Release.
-6. For F-Droid, ensure `LICENSE`, README metadata, `fastlane/metadata/android/en-US/`, screenshots, and changelog are current.
-7. Always update `docs/fdroiddata/com.zaelio.app.yml` and submitted `fdroiddata` metadata for the new `versionCode` with a full commit hash, `Binaries`, and `AllowedAPKSigningKeys`.
+3. Ensure `scripts/release.sh` creates `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` for the same release; keep it under 500 characters so F-Droid shows "What's New".
+4. Run `./gradlew testDebugUnitTest` and, for release-impacting changes, `./gradlew assembleDebug` or `./gradlew assembleRelease`.
+5. Commit the version change, then create a matching tag such as `v1.1.0`.
+6. Push the branch and tag; the tag triggers `.github/workflows/release.yml` to build and attach the signed APK to a GitHub Release.
+7. For F-Droid, ensure `LICENSE`, README metadata, `fastlane/metadata/android/en-US/`, screenshots, and changelog are current.
+8. Always update `docs/fdroiddata/com.zaelio.app.yml` and submitted `fdroiddata` metadata for the new `versionCode` with a full commit hash, `Binaries`, and `AllowedAPKSigningKeys`.
 
 Before F-Droid submission or dependency/toolchain upgrades, verify F-Droid buildserver support for the current Android Gradle Plugin and `compileSdk`.
 

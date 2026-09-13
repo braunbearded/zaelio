@@ -1,0 +1,4 @@
+Improved session input performance and field collapse controls.
+Smoothed settings refreshes and restored colored accent controls.
+Live session text fields now grow with multiline content.
+Fixed tracker-editor delete gestures around inputs and dropdowns.

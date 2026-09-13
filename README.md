@@ -21,7 +21,11 @@ Kontakt/Bugs: https://github.com/braunbearded/zaelio/issues
 
 ## 📱 Screenshots
 
-![Session screen](docs/screenshots/session.png)
+| Sessions | In Session | Tracker Editor | Settings |
+|---|---|---|---|
+| ![Session overview](docs/screenshots/session-overview.png) | ![Session in progress](docs/screenshots/in-session.png) | ![Edit tracker](docs/screenshots/edit-tracker.png) | ![Settings](docs/screenshots/settings-menu.png) |
+| New Session | Trackers | Data Transfer | |
+| ![New session start](docs/screenshots/new-session-start.png) | ![Tracker overview](docs/screenshots/tracker-overview.png) | ![Data transfer](docs/screenshots/data-transfer-menu.png) | |
 
 ## 🧰 Benötigte Abhängigkeiten
 
@@ -82,7 +86,7 @@ Release-Builds sollten mit JDK 21 laufen, damit GitHub-Release und F-Droid-Build
 ./scripts/release.sh
 ```
 
-Das Script aktualisiert Version und Changelog, kann Tests/Release-Build ausführen und Commit/Tag erstellen. Danach schreibt es die F-Droid-Metadaten mit dem vollen Release-Commit-Hash in einen zweiten Commit. Vor einem direkten Push prüft es den lokalen APK-Signing-Zertifikat-Hash. Die GitHub Action baut aus dem Tag eine signierte Release-APK und hängt sie an den GitHub Release.
+Das Script aktualisiert Version, `CHANGELOG.md` und den Fastlane-Changelog für den `versionCode`, kann Tests/Release-Build ausführen und Commit/Tag erstellen. Danach schreibt es die F-Droid-Metadaten mit dem vollen Release-Commit-Hash in einen zweiten Commit. Vor einem direkten Push prüft es den lokalen APK-Signing-Zertifikat-Hash. Die GitHub Action baut aus dem Tag eine signierte Release-APK und hängt sie an den GitHub Release.
 
 Tag prüfen oder bei Fehler löschen:
 
@@ -132,7 +136,7 @@ Ohne diese Variablen erzeugt Gradle weiterhin nur eine unsigned Release-APK. Rel
 
 Vor der Einreichung bei F-Droid:
 
-- `LICENSE`, `CHANGELOG.md`, Fastlane-Metadaten und Screenshots aktuell halten.
+- `LICENSE`, `CHANGELOG.md`, Fastlane-Metadaten, `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` und Screenshots aktuell halten.
 - Pro Release `versionCode` erhöhen und einen Tag wie `v1.1.0` setzen.
 - `docs/fdroiddata/com.zaelio.app.yml` für die neue Version aktualisieren: voller Commit-Hash, `Binaries`, `AllowedAPKSigningKeys`.
 - Prüfen, ob F-Droid die verwendete Kombination aus Android Gradle Plugin und `compileSdk` bauen kann.

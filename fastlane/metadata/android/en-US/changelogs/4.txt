@@ -1,0 +1,3 @@
+F-Droid metadata for reproducible builds added.
+Release script updated so F-Droid uses full commit hashes instead of tags.
+F-Droid and release documentation clarified.

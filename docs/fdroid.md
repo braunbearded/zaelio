@@ -109,10 +109,12 @@ git commit -m "Add Zaelio"
 git push origin com.zaelio.app
 ```
 
-Nach einem Release erzeugt `scripts/release.sh` absichtlich einen zweiten Commit
-für `docs/fdroiddata/com.zaelio.app.yml`: erst nach dem Release-Commit ist der
-volle Commit-Hash für F-Droid bekannt. Wenn das Script direkt pusht, prüft es
-vorher den lokalen APK-Signing-Zertifikat-Hash gegen `AllowedAPKSigningKeys`.
+Nach einem Release erzeugt `scripts/release.sh` den passenden Fastlane-Changelog
+unter `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` und absichtlich
+einen zweiten Commit für `docs/fdroiddata/com.zaelio.app.yml`: erst nach dem
+Release-Commit ist der volle Commit-Hash für F-Droid bekannt. Wenn das Script
+direkt pusht, prüft es vorher den lokalen APK-Signing-Zertifikat-Hash gegen
+`AllowedAPKSigningKeys`.
 
 Danach einen Merge Request gegen `fdroid/fdroiddata` öffnen und im RFP kommentieren:
 
@@ -128,7 +130,7 @@ Metadata MR submitted: <MR-Link>
 - Issues referenzieren: im MR den RFP `https://gitlab.com/fdroid/rfp/-/work_items/4205` verlinken.
 - Build: lokal mit `fdroid build -v -l com.zaelio.app` prüfen.
 - Issue Tracker/Kontakt: GitHub Issues sind in Metadata und README verlinkt.
-- Upstream-Metadaten: `fastlane/metadata/android/en-US/` enthält Titel, Kurzbeschreibung, Beschreibung, Changelogs und Screenshot.
+- Upstream-Metadaten: `fastlane/metadata/android/en-US/` enthält Titel, Kurzbeschreibung, Beschreibung, versionCode-passende Changelogs und mehrere sinnvoll benannte Screenshots.
 - Releases/Autoupdate: Releases sind als `vX.Y.Z` getaggt; `UpdateCheckMode: Tags` ist gesetzt.
 - Externe Repos/Submodules: keine.
 - Native Code/Multiple APKs: keine native Codebasis, daher nicht relevant.

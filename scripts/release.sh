@@ -81,6 +81,13 @@ s = p.read_text()
 entry = f"## {version}\n\n" + ''.join(f"- {e}\n" for e in entries) + "\n"
 s = s.replace('# Changelog\n\n', '# Changelog\n\n' + entry, 1)
 p.write_text(s)
+
+fastlane = Path(f'fastlane/metadata/android/en-US/changelogs/{code}.txt')
+fastlane.parent.mkdir(parents=True, exist_ok=True)
+text = '\n'.join(entries) + '\n'
+if len(text) > 500:
+    raise SystemExit('Fastlane changelog must stay under 500 characters')
+fastlane.write_text(text)
 PY
 
 if yesno "Run unit tests" "y"; then
@@ -92,7 +99,7 @@ if yesno "Build release APK" "y"; then
 fi
 
 if yesno "Commit and tag v$version_name" "y"; then
-    git add app/build.gradle CHANGELOG.md
+    git add app/build.gradle CHANGELOG.md fastlane/metadata/android/en-US/changelogs
     git commit -m "Release $version_name"
     release_commit=$(git rev-parse HEAD)
     git tag "v$version_name"
