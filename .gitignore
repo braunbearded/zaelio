@@ -20,6 +20,7 @@ local.properties
 *.dex
 
 # Generated / temporary files
+__pycache__/
 *.class
 *.jar
 !gradle/wrapper/gradle-wrapper.jar

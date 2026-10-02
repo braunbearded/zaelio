@@ -98,9 +98,16 @@ Release-Builds sollten mit JDK 21 laufen, damit GitHub-Release und F-Droid-Build
 ./scripts/release.sh
 ```
 
-Das Script aktualisiert Version, `CHANGELOG.md` und den Fastlane-Changelog für den `versionCode`, kann Tests/Release-Build ausführen und Commit/Tag erstellen. Danach schreibt es die F-Droid-Metadaten mit dem vollen Release-Commit-Hash in einen zweiten Commit. Vor einem direkten Push prüft es den lokalen APK-Signing-Zertifikat-Hash. Die GitHub Action baut aus dem Tag eine signierte Release-APK und hängt sie an den GitHub Release.
+Das Script bereitet einen Versionsbranch wie `v1.0.10` vor: Version und `versionCode` erhöhen, bisherige `Unreleased`-Einträge in den Release-Changelog übernehmen und einen Fastlane-Changelog mit höchstens 500 Zeichen erzeugen. Es kann Tests/Debug-Build ausführen, die Vorbereitung committen und **nur den Branch** pushen. Tags und F-Droid-Commit-Hashes werden nicht mehr vor dem Merge angelegt.
 
-Versionsbranch und Tag dürfen denselben Namen haben (z. B. `v1.0.9`). Das Release-Script prüft gezielt Tags und verwendet beim Push eindeutige `refs/heads/...`- bzw. `refs/tags/...`-Referenzen.
+1. Versionsbranch pushen und einen PR nach `main` öffnen (Branch und PR müssen aus diesem Repository stammen).
+2. `.github/workflows/tests.yml` testet den Branch und baut eine Debug-APK. Der PR bekommt einen aktualisierbaren Kommentar mit Artefakt-Download und Commit-Hash; auch das Öffnen/Wiederöffnen eines PRs löst einen Vorschau-Build aus. Der Download benötigt eine GitHub-Anmeldung und ist nur während der Artefakt-Aufbewahrungsdauer verfügbar.
+3. Beim Merge startet `.github/workflows/release.yml`: Tests, signierter Release-Build und Prüfung des Signing-Zertifikats. Danach entstehen Tag `v<versionName>` am exakten Merge-/Squash-Commit und das finale GitHub Release mit `zaelio.apk` direkt im selben Workflow. Geschlossene, nicht gemergte PRs und Tag-Pushes veröffentlichen nichts.
+4. Die Action aktualisiert anschließend die F-Droid-Metadaten mit diesem vollständigen Commit-Hash, stellt sie als Artefakt bereit und committet sie nach `main`.
+
+`versionName` muss zum Versionsbranch passen (Suffixe wie `-fix` oder `/feature` sind erlaubt); `versionCode` muss für jede neue Version steigen. Die vier Signing-Secrets müssen im geschützten Environment `release` eingerichtet sein (siehe unten). Repository-Regeln müssen GitHub Actions das Schreiben von Tags und PR-Kommentaren erlauben. Für den F-Droid-Metadaten-Commit auf `main` keine pauschale Bot-Ausnahme vom Branchschutz einrichten; stattdessen bei Bedarf den Artefakt-/PR-Weg nutzen. Falls der Metadaten-Push durch Branchschutz blockiert wird, bleibt das bereits veröffentlichte Release erhalten; die Metadaten aus dem Artefakt können dann per separatem PR übernommen werden. Erst die nächste Version mergen, wenn der vorherige Release-Workflow fertig ist.
+
+Versionsbranch und Tag dürfen denselben Namen haben. Bestehende Tags auf einem anderen Commit werden niemals überschrieben; einen vorab lokal erzeugten Tag (insbesondere den bisherigen `v1.0.9`) **nicht pushen**. Bei einem fehlgeschlagenen Workflow dessen Lauf erneut starten: Ein passender Tag und ein bereits angelegtes Release werden wiederverwendet.
 
 Tag prüfen oder bei Fehler löschen:
 
@@ -113,7 +120,9 @@ git push origin :refs/tags/v1.1.0
 
 ## 🔐 Release signieren
 
-Keystore erstellen:
+Für bestehende Zaelio-Releases den vorhandenen Release-Keystore und Alias weiterverwenden; nicht für jedes Release einen neuen Key erzeugen. Das Zertifikat muss zu `AllowedAPKSigningKeys` passen.
+
+Keystore nur für die erstmalige Einrichtung erstellen:
 
 ```bash
 keytool -genkeypair -v -keystore zaelio-release.jks -alias zaelio -keyalg RSA -keysize 4096 -validity 10000
@@ -125,7 +134,16 @@ Keystore als GitHub Secret ablegen:
 base64 -w0 zaelio-release.jks
 ```
 
-Benötigte GitHub Secrets:
+Vor dem ersten Merge auf GitHub **Settings → Environments → New environment → `release`** konfigurieren:
+
+- Unter **Deployment branches and tags → Selected branches and tags** nur eine **Branch**-Regel für `main` erlauben, keine Tag-Regel.
+- Die vier folgenden Signing-Secrets als **Environment secrets** einrichten. Bestehende gleichnamige Repository-/Organization-Secrets für dieses Repo entfernen bzw. deren Zugriff entziehen, nicht zusätzlich behalten: Schreibberechtigte könnten sie sonst über geänderte Branch-Workflows auslesen.
+- Optional **Required reviewers** setzen; **Prevent self-review** benötigt eine andere freigabeberechtigte Person. Ohne weiteren Reviewer kann eine Ein-Personen-Konfiguration dadurch blockiert werden.
+- `main` passend schützen und Schreibrechte nur vertrauenswürdigen Personen geben. Environment-Schutz muss in den GitHub-Einstellungen eingerichtet werden; `environment: release` im YAML allein reicht nicht. Ein unbekanntes Environment wird von GitHub ohne Schutzregeln angelegt.
+
+Die Actions sind auf vollständige, aus den offiziellen Upstream-Repositories geprüfte Commit-SHAs gepinnt. Bei Updates die SHAs erneut upstream verifizieren, statt bewegliche Versionstags einzutragen.
+
+Benötigte Environment-Secrets:
 
 ```text
 ANDROID_SIGNING_KEY_BASE64
@@ -151,7 +169,7 @@ Ohne diese Variablen erzeugt Gradle weiterhin nur eine unsigned Release-APK. Rel
 Vor der Einreichung bei F-Droid:
 
 - `LICENSE`, `CHANGELOG.md`, Fastlane-Metadaten, `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` und Screenshots aktuell halten.
-- Pro Release `versionCode` erhöhen und einen Tag wie `v1.1.0` setzen.
+- Pro Release `versionCode` erhöhen; die Merge-Action setzt den Tag wie `v1.1.0`.
 - `docs/fdroiddata/com.zaelio.app.yml` für die neue Version aktualisieren: voller Commit-Hash, `Binaries`, `AllowedAPKSigningKeys`.
 - Prüfen, ob F-Droid die verwendete Kombination aus Android Gradle Plugin und `compileSdk` bauen kann.
 - Nach dem GitHub-Release lokal prüfen: `FDROIDDATA_DIR=/path/to/fdroiddata ./scripts/check-fdroid-reproducible.sh`
@@ -187,7 +205,15 @@ Lokale Unit-Tests laufen mit JUnit und Robolectric:
 ./gradlew testDebugUnitTest
 ```
 
-GitHub Actions führt bei jedem Push auf einen Versionsbranch mit Präfix `v<major>.<minor>.<patch>` (z. B. `v1.2.3`, `v1.2.3-fix` oder `v1.2.3/feature`) dieselben Tests aus: `.github/workflows/tests.yml`, Ubuntu und JDK 21, ohne Signing-Secrets oder Release-Veröffentlichung. Pushes auf Versionstags `v*` werden weiterhin von `.github/workflows/release.yml` getestet und veröffentlicht.
+GitHub Actions führt bei jedem Push auf einen vorbereiteten Versionsbranch (z. B. `v1.2.3`, `v1.2.3-fix` oder `v1.2.3/feature`) die Tests und `assembleDebug` mit Ubuntu/JDK 21 aus, ohne Signing-Secrets. Die Debug-APK wird als Artefakt gespeichert und in offenen PRs nach `main` verlinkt. Nur der Merge eines solchen PRs erstellt Tag und signiertes Release.
+
+Die Release-Helfer werden ohne zusätzliche Abhängigkeiten geprüft:
+
+```bash
+python3 -m unittest discover -s scripts -p 'test_*.py'
+```
+
+Debug-APKs haben dieselbe App-ID, aber eine andere Signatur als Release-APKs; auch zwischen CI-Läufen kann die Debug-Signatur wechseln. Ein Wechsel kann eine Neuinstallation verlangen, die lokale Daten löscht: vorher ein Backup erstellen.
 
 Aktueller Fokus:
 

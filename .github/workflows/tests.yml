@@ -1,23 +1,100 @@
-name: Version branch tests
+name: Version branch APK
 
 on:
   push:
     branches:
       - "v[0-9]+.[0-9]+.[0-9]+**"
+  pull_request:
+    branches: [main]
+    types: [opened, reopened]
 
 permissions:
   contents: read
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+concurrency:
+  group: version-preview-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
-      - uses: actions/setup-java@v4
+jobs:
+  build:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       startsWith(github.head_ref, 'v'))
+    runs-on: ubuntu-latest
+    outputs:
+      apk-url: ${{ steps.apk.outputs.artifact-url }}
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: 21
 
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest
+      - name: Check release preparation and source
+        id: source
+        env:
+          VERSION_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          python3 scripts/release_ci.py "$VERSION_BRANCH"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Test release tooling
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
+      - name: Test and build debug APK
+        run: ./gradlew testDebugUnitTest assembleDebug
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: apk
+        with:
+          name: zaelio-debug-${{ github.run_id }}-${{ github.run_attempt }}
+          path: app/build/outputs/apk/debug/zaelio-debug.apk
+          if-no-files-found: error
+
+  comment:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Update APK download in PR
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          APK_URL: ${{ needs.build.outputs.apk-url }}
+          BUILD_SHA: ${{ needs.build.outputs.sha }}
+          VERSION_BRANCH: ${{ github.head_ref || github.ref_name }}
+        with:
+          script: |
+            const repo = context.repo;
+            const prs = context.payload.pull_request
+              ? [context.payload.pull_request]
+              : await github.paginate(github.rest.pulls.list, {
+                  ...repo, state: 'open', base: 'main',
+                  head: `${repo.owner}:${process.env.VERSION_BRANCH}`, per_page: 100
+                });
+            const marker = '<!-- zaelio-preview-apk -->';
+            const body = `${marker}\n### Debug-APK\n` +
+              `[APK herunterladen](${process.env.APK_URL}) (GitHub-Anmeldung erforderlich)\n\n` +
+              `Commit: \`${process.env.BUILD_SHA}\`\n\n` +
+              `Vorschau, kein finales Release. Das Artefakt enthält \`zaelio-debug.apk\`. ` +
+              `Die Signatur unterscheidet sich vom Release und kann zwischen Builds wechseln. ` +
+              `Vor einer Neuinstallation ein Backup erstellen.`;
+            for (const pr of prs) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                ...repo, issue_number: pr.number, per_page: 100
+              });
+              const existing = comments.find(comment =>
+                comment.user?.login === 'github-actions[bot]' && comment.body?.startsWith(marker));
+              if (existing) {
+                await github.rest.issues.updateComment({...repo, comment_id: existing.id, body});
+              } else {
+                await github.rest.issues.createComment({...repo, issue_number: pr.number, body});
+              }
+            }

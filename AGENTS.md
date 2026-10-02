@@ -125,18 +125,18 @@ Common targets:
 If docs are not updated, final response must include: `Docs unchanged: <reason>`.
 
 ## Release & F-Droid Guidelines
-For every new public version, prefer `scripts/release.sh`; it prompts for version, changelog, checks, commit/tag, push, and updates F-Droid metadata in a second commit with the full release commit hash.
+For every new public version, prefer `scripts/release.sh`; it prepares a version branch, version/Fastlane changelogs, optional tests/debug build and preparation commit, and pushes only the branch. It must not create/push a release tag or write a speculative F-Droid commit hash before merge.
 
-Manual flow:
+Release flow:
 
-1. Increase `versionCode` and `versionName` in `app/build.gradle`.
-2. Update `CHANGELOG.md` with user-visible changes.
-3. Ensure `scripts/release.sh` creates `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` for the same release; keep it under 500 characters so F-Droid shows "What's New".
-4. Run `./gradlew testDebugUnitTest` and, for release-impacting changes, `./gradlew assembleDebug` or `./gradlew assembleRelease`.
-5. Commit the version change, then create a matching tag such as `v1.1.0`.
-6. Push the branch and tag; the tag triggers `.github/workflows/release.yml` to build and attach the signed APK to a GitHub Release.
-7. For F-Droid, ensure `LICENSE`, README metadata, `fastlane/metadata/android/en-US/`, screenshots, and changelog are current.
-8. Always update `docs/fdroiddata/com.zaelio.app.yml` and submitted `fdroiddata` metadata for the new `versionCode` with a full commit hash, `Binaries`, and `AllowedAPKSigningKeys`.
+1. Increase `versionCode` and `versionName` in `app/build.gradle` on a matching branch such as `v1.1.0` (optional `-suffix` or `/suffix`). Keep Fastlane notes at most 500 characters and move `Unreleased` details into that version's changelog.
+2. Run `./gradlew testDebugUnitTest` and `./gradlew assembleDebug`. For release-tooling changes also run `python3 -m unittest discover -s scripts -p 'test_*.py'` and validate both workflows with actionlint when available.
+3. Push the version branch and open a same-repository PR into `main`. `.github/workflows/tests.yml` tests/builds a debug APK and maintains its PR download comment; the build job is read-only and the comment job never checks out PR code.
+4. Merge the PR. `.github/workflows/release.yml` checks out the exact merge/squash commit, validates branch/version/Fastlane data with `scripts/release_ci.py`, tests, signs and verifies the APK, then creates/reuses a matching tag and publishes directly in the same job. GITHUB_TOKEN-created tags do not trigger another workflow. Reject conflicting tags instead of moving them.
+5. The merge workflow updates `docs/fdroiddata/com.zaelio.app.yml` to the full tagged merge hash in a follow-up commit on `main` and uploads the metadata as an artifact. Branch rules must permit this bot push; otherwise apply the artifact through a separate PR. Never overwrite a newer version's metadata; finish one version's release before merging the next.
+6. Keep `LICENSE`, README/Fastlane metadata, screenshots and signing secrets current. After publication update submitted `fdroiddata` metadata and run the reproducibility check. Preserve `Binaries` and `AllowedAPKSigningKeys`.
+
+Closed-but-unmerged PRs, non-version PRs, fork PRs, and tag pushes must not publish releases. Keep signing secrets away from preview jobs and never use `pull_request_target` to build an untrusted head. The release job must bind to the `release` environment; configure its server-side deployment branch policy for `main` only, with optional approval, and move signing secrets out of repository/organization scope accessible to branch workflows. YAML alone does not configure protection rules. Pin third-party actions to verified full upstream commit SHAs.
 
 Before F-Droid submission or dependency/toolchain upgrades, verify F-Droid buildserver support for the current Android Gradle Plugin and `compileSdk`.
 
@@ -156,6 +156,6 @@ Pull requests should include:
 
 ## Security & Configuration
 - Do not commit `local.properties`, keystores, passwords, API keys, or other machine-specific files.
-- GitHub release signing must use repository secrets.
+- GitHub release signing must use secrets in the protected `release` environment; do not keep signing credentials in repository/organization scope accessible to version-branch workflows.
 - The app is Android-only, SQLite-backed, and should not gain hidden Google service dependencies.
 - For F-Droid/OSS builds, only use free/open dependencies.

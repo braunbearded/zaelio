@@ -1,7 +1,7 @@
-Preserve session values when editing, renaming or reordering tracker fields.
-Keep cleared values empty when reusing previous values.
-Fix field ordering after deletion and cancelled swipe-to-delete gestures.
-Roll back backup imports on SQLite errors.
-Simplify shared UI helpers and expand regression tests.
-Run tests automatically on version-prefixed branches.
-Allow matching version branch and tag names in the release script.
+Preserve saved session values when editing, renaming or reordering fields.
+Keep cleared values empty when using previous-value prefill.
+Fix field ordering after deletion and cancelled delete swipes.
+Roll back failed backup imports.
+Simplify UI helpers and expand regression tests.
+Provide PR preview APKs; create signed releases and version tags on merge.
+Use environment-based signing and pin workflow actions.
