@@ -44,21 +44,17 @@ final class TrackingDatabase extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    private long now() {
-        return System.currentTimeMillis();
-    }
-
     private void seed(SQLiteDatabase db) {
         long trackerId = insertTracker(db, "Training", "Beispiel-Tracker");
-        field(db, trackerId, "reps", "Wiederholungen", "int", 0, "8", 1, true);
-        field(db, trackerId, "weight", "Zusatzgewicht", "float", 1, "0", 2.5, true);
-        field(db, trackerId, "note", "Notiz", "string", 2, "", 1, false);
-        field(db, trackerId, "duration", "Dauer", "duration", 3, "60000", 1, true);
+        insertField(db, trackerId, "reps", "Wiederholungen", "int", 0, "8", 1, true);
+        insertField(db, trackerId, "weight", "Zusatzgewicht", "float", 1, "0", 2.5, true);
+        insertField(db, trackerId, "note", "Notiz", "string", 2, "", 1, false);
+        insertField(db, trackerId, "duration", "Dauer", "duration", 3, "60000", 1, true);
     }
 
     long insertTracker(SQLiteDatabase db, String name, String desc) {
         ContentValues values = new ContentValues();
-        long now = now();
+        long now = System.currentTimeMillis();
         values.put("name", name);
         values.put("description", desc);
         values.put("createdAt", now);
@@ -90,29 +86,13 @@ final class TrackingDatabase extends SQLiteOpenHelper {
         return db.insert("fields", null, values);
     }
 
-    void field(
-            SQLiteDatabase db,
-            long trackerId,
-            String key,
-            String label,
-            String type,
-            int order,
-            String def,
-            double inc,
-            boolean prefillFromPrevious) {
-        insertField(db, trackerId, key, label, type, order, def, inc, prefillFromPrevious);
-    }
-
     List<Tracker> trackers() {
         SQLiteDatabase db = getReadableDatabase();
         List<Tracker> list = new ArrayList<>();
-        Cursor cursor = db.rawQuery("SELECT id FROM trackers ORDER BY overviewOrder,id", null);
-        try {
+        try (Cursor cursor = db.rawQuery("SELECT id FROM trackers ORDER BY overviewOrder,id", null)) {
             while (cursor.moveToNext()) {
                 list.add(readTracker(db, cursor.getLong(0)));
             }
-        } finally {
-            cursor.close();
         }
         return list;
     }
@@ -122,10 +102,9 @@ final class TrackingDatabase extends SQLiteOpenHelper {
     }
 
     Tracker readTracker(SQLiteDatabase db, long id) {
-        Cursor trackerCursor = db.rawQuery(
+        try (Cursor trackerCursor = db.rawQuery(
                 "SELECT id,name,description,createdAt,updatedAt FROM trackers WHERE id=?",
-                new String[]{String.valueOf(id)});
-        try {
+                new String[]{String.valueOf(id)})) {
             if (!trackerCursor.moveToFirst()) {
                 return null;
             }
@@ -137,10 +116,9 @@ final class TrackingDatabase extends SQLiteOpenHelper {
             tracker.createdAt = trackerCursor.getLong(3);
             tracker.updatedAt = trackerCursor.getLong(4);
 
-            Cursor fieldCursor = db.rawQuery(
+            try (Cursor fieldCursor = db.rawQuery(
                     "SELECT id,trackerId,fieldKey,label,type,sortOrder,defaultValue,incrementValue,required,prefillFromPrevious FROM fields WHERE trackerId=? ORDER BY sortOrder,id",
-                    new String[]{String.valueOf(id)});
-            try {
+                    new String[]{String.valueOf(id)})) {
                 while (fieldCursor.moveToNext()) {
                     FieldDefinition definition = new FieldDefinition();
                     definition.id = fieldCursor.getLong(0);
@@ -155,22 +133,17 @@ final class TrackingDatabase extends SQLiteOpenHelper {
                     definition.prefillFromPrevious = fieldCursor.getInt(9) == 1;
                     tracker.fields.add(definition);
                 }
-            } finally {
-                fieldCursor.close();
             }
 
             return tracker;
-        } finally {
-            trackerCursor.close();
         }
     }
 
     List<Session> sessions() {
         List<Session> sessions = new ArrayList<>();
-        Cursor cursor = getReadableDatabase().rawQuery(
+        try (Cursor cursor = getReadableDatabase().rawQuery(
                 "SELECT id,trackerId,createdAt,updatedAt FROM sessions ORDER BY overviewOrder,id",
-                null);
-        try {
+                null)) {
             while (cursor.moveToNext()) {
                 Session session = new Session();
                 session.id = cursor.getLong(0);
@@ -179,17 +152,14 @@ final class TrackingDatabase extends SQLiteOpenHelper {
                 session.updatedAt = cursor.getLong(3);
                 sessions.add(session);
             }
-        } finally {
-            cursor.close();
         }
         return sessions;
     }
 
     Session session(long id) {
-        Cursor cursor = getReadableDatabase().rawQuery(
+        try (Cursor cursor = getReadableDatabase().rawQuery(
                 "SELECT id,trackerId,createdAt,updatedAt FROM sessions WHERE id=?",
-                new String[]{String.valueOf(id)});
-        try {
+                new String[]{String.valueOf(id)})) {
             if (!cursor.moveToFirst()) {
                 return null;
             }
@@ -200,14 +170,12 @@ final class TrackingDatabase extends SQLiteOpenHelper {
             session.createdAt = cursor.getLong(2);
             session.updatedAt = cursor.getLong(3);
             return session;
-        } finally {
-            cursor.close();
         }
     }
 
     long createSession(long trackerId) {
         ContentValues values = new ContentValues();
-        long now = now();
+        long now = System.currentTimeMillis();
         values.put("trackerId", trackerId);
         values.put("createdAt", now);
         values.put("updatedAt", now);
@@ -239,25 +207,8 @@ final class TrackingDatabase extends SQLiteOpenHelper {
     }
 
     private long nextOverviewOrder(SQLiteDatabase db, String table) {
-        Cursor cursor = db.rawQuery("SELECT COALESCE(MIN(overviewOrder),0)-1 FROM " + table, null);
-        try {
+        try (Cursor cursor = db.rawQuery("SELECT COALESCE(MIN(overviewOrder),0)-1 FROM " + table, null)) {
             return cursor.moveToFirst() ? cursor.getLong(0) : 0;
-        } finally {
-            cursor.close();
-        }
-    }
-
-    private void initializeOverviewOrder(SQLiteDatabase db, String table, String orderBy) {
-        Cursor cursor = db.rawQuery("SELECT id FROM " + table + " ORDER BY " + orderBy, null);
-        try {
-            int order = 0;
-            while (cursor.moveToNext()) {
-                ContentValues values = new ContentValues();
-                values.put("overviewOrder", order++);
-                db.update(table, values, "id=?", new String[]{String.valueOf(cursor.getLong(0))});
-            }
-        } finally {
-            cursor.close();
         }
     }
 
@@ -289,10 +240,9 @@ final class TrackingDatabase extends SQLiteOpenHelper {
 
     Map<Long, FieldRecord> records(long sessionId) {
         Map<Long, FieldRecord> records = new HashMap<>();
-        Cursor cursor = getReadableDatabase().rawQuery(
+        try (Cursor cursor = getReadableDatabase().rawQuery(
                 "SELECT id,sessionId,trackerId,fieldId,valuesJson,createdAt,updatedAt FROM field_records WHERE sessionId=?",
-                new String[]{String.valueOf(sessionId)});
-        try {
+                new String[]{String.valueOf(sessionId)})) {
             while (cursor.moveToNext()) {
                 FieldRecord record = new FieldRecord();
                 record.id = cursor.getLong(0);
@@ -304,14 +254,12 @@ final class TrackingDatabase extends SQLiteOpenHelper {
                 record.updatedAt = cursor.getLong(6);
                 records.put(record.fieldId, record);
             }
-        } finally {
-            cursor.close();
         }
         return records;
     }
 
     void saveRecords(Session session, Map<Long, Map<String, Object>> valuesByFieldId) {
-        long now = now();
+        long now = System.currentTimeMillis();
         SQLiteDatabase db = getWritableDatabase();
         db.beginTransaction();
         try {
@@ -344,10 +292,9 @@ final class TrackingDatabase extends SQLiteOpenHelper {
     }
 
     Object previousValue(long trackerId, long fieldId, String key) {
-        Cursor cursor = getReadableDatabase().rawQuery(
+        try (Cursor cursor = getReadableDatabase().rawQuery(
                 "SELECT valuesJson FROM field_records WHERE trackerId=? AND fieldId=? ORDER BY updatedAt DESC LIMIT 1",
-                new String[]{String.valueOf(trackerId), String.valueOf(fieldId)});
-        try {
+                new String[]{String.valueOf(trackerId), String.valueOf(fieldId)})) {
             if (!cursor.moveToFirst()) {
                 return NO_PREVIOUS;
             }
@@ -359,20 +306,15 @@ final class TrackingDatabase extends SQLiteOpenHelper {
             return object.isNull(key) ? null : object.get(key);
         } catch (JSONException e) {
             throw new IllegalArgumentException(e);
-        } finally {
-            cursor.close();
         }
     }
 
     int recordCount(long sessionId) {
-        Cursor cursor = getReadableDatabase().rawQuery(
+        try (Cursor cursor = getReadableDatabase().rawQuery(
                 "SELECT COUNT(*) FROM field_records WHERE sessionId=?",
-                new String[]{String.valueOf(sessionId)});
-        try {
+                new String[]{String.valueOf(sessionId)})) {
             cursor.moveToFirst();
             return cursor.getInt(0);
-        } finally {
-            cursor.close();
         }
     }
 

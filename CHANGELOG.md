@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+## 1.0.9
+
+- Fixed release-script tag checks and push references when a version branch and tag have the same name.
+- Added GitHub Actions unit tests for pushes to version-prefixed branches (e.g. `v1.2.3` or `v1.2.3-fix`), without requiring release signing secrets.
+- Fixed field drag ordering after deleting another field; removed stale editor state and reused the shared back footer and icon helpers.
+- Preserved explicit JSON null values when clearing session inputs so previous-value prefill no longer falls back to defaults.
+- Made SQLite write failures roll back backup imports instead of silently committing partial data; added regression tests for duplicate records, cleared values, and reorder-after-delete.
+- Fixed tracker edits deleting all saved session values, including when only reordering a field.
+- Preserved field IDs across editor autosaves and migrated saved value keys when renaming fields. Deleting a field now removes only that field's values.
+- Added regression tests for editor drag/autosave, renames, field additions/deletions, duplicates, backup imports, database reopening, and transactional rollback, including updates missing field IDs. Database schema remains v8.
+- Simplified UI/database helpers and removed unused paths without changing session editing or persistence; added a regression test for editable controls and debounced autosave.
+- Fixed cancelled left-swipe gestures incorrectly initiating delete selection.
+- Expanded regression tests for partial-write rollback, editor copy/delete and blank names, autosave timing/exit, prefill, timer cleanup, and delete-gesture/dialog safeguards.
+
 ## 1.0.8
 
 - Improved F-Droid metadata, changelogs, and screenshots.

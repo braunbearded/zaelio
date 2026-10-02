@@ -135,7 +135,7 @@ public final class HomeUi {
         arrow.setOnClickListener(v -> open.run());
 
         card.addView(ui.listRow(handle, content, menu, arrow), new LinearLayout.LayoutParams(-1, -2));
-        attachOverviewReorder(handle, reorderContainer, card, onReorder);
+        ReorderHelper.attach(ui, handle, reorderContainer, card, onReorder);
         return card;
     }
 
@@ -175,10 +175,6 @@ public final class HomeUi {
         emptyLp.topMargin = ui.spaceXs();
         empty.setLayoutParams(emptyLp);
         return empty;
-    }
-
-    private void attachOverviewReorder(View handle, LinearLayout container, View movedView, Runnable onChange) {
-        ReorderHelper.attach(ui, handle, container, movedView, onChange);
     }
 
     private java.util.List<Long> childIds(LinearLayout container) {
@@ -248,7 +244,7 @@ public final class HomeUi {
 
     private String formatValue(FieldDefinition field, Object value) {
         if ("duration".equals(field.type)) {
-            long millis = value instanceof Number ? ((Number) value).longValue() : parseLong(value);
+            long millis = FormatUtil.toLong(value);
             return FormatUtil.formatMs(millis);
         }
         if ("float".equals(field.type) && value instanceof Number) {
@@ -256,14 +252,6 @@ public final class HomeUi {
 ;
         }
         return String.valueOf(value);
-    }
-
-    private long parseLong(Object value) {
-        try {
-            return Long.parseLong(String.valueOf(value));
-        } catch (Exception e) {
-            return 0;
-        }
     }
 
     private String fieldPreview(Tracker tracker) {

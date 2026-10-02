@@ -1,16 +1,22 @@
 package com.zaelio.app;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
+import android.database.sqlite.SQLiteConstraintException;
 import android.database.sqlite.SQLiteDatabase;
 import androidx.test.core.app.ApplicationProvider;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.After;
 import org.junit.Before;
@@ -120,6 +126,82 @@ public class BackupJsonRepositoryTest {
         assertEquals(1, db.trackers().size());
         assertEquals(1, db.sessions().size());
         assertEquals(1, db.recordCount(db.sessions().get(0).id));
+    }
+
+    @Test
+    public void malformedBackupRollsBackImportedTrackersSessionsAndRecords() throws Exception {
+        Tracker tracker = db.trackers().get(0);
+        FieldDefinition field = tracker.fields.get(0);
+        Session session = db.session(db.createSession(tracker.id));
+        db.saveRecords(session, Collections.singletonMap(field.id, Collections.singletonMap(field.key, 55)));
+        String before = BackupJsonRepository.exportAll(db);
+        JSONObject invalid = new JSONObject(before);
+        JSONArray sessions = invalid.getJSONArray("sessions");
+        sessions.put(new JSONObject(sessions.getJSONObject(0).toString())
+                .put("records", new JSONArray().put("not-a-record")));
+
+        assertThrows(JSONException.class, () -> BackupJsonRepository.importAll(db, invalid.toString()));
+
+        assertFalse(db.getWritableDatabase().inTransaction());
+        assertEquals(before, BackupJsonRepository.exportAll(db));
+        assertEquals(1, BackupJsonRepository.importAll(db, before));
+        assertEquals(2, db.trackers().size());
+        assertEquals(2, db.sessions().size());
+        assertEquals(55, new JSONObject(db.records(session.id).get(field.id).valuesJson).getInt(field.key));
+    }
+
+    @Test
+    public void duplicateRecordsRollBackFullAndSessionOnlyImportsAndAllowRetry() throws Exception {
+        Tracker tracker = db.trackers().get(0);
+        FieldDefinition field = tracker.fields.get(0);
+        Session session = db.session(db.createSession(tracker.id));
+        db.saveRecords(session, Collections.singletonMap(field.id, Collections.singletonMap(field.key, 55)));
+        String before = BackupJsonRepository.exportAll(db);
+        JSONObject invalid = new JSONObject(before);
+        JSONArray records = invalid.getJSONArray("sessions").getJSONObject(0).getJSONArray("records");
+        records.put(new JSONObject(records.getJSONObject(0).toString()));
+
+        assertThrows(SQLiteConstraintException.class, () -> BackupJsonRepository.importAll(db, invalid.toString()));
+        assertFalse(db.getWritableDatabase().inTransaction());
+        assertEquals(before, BackupJsonRepository.exportAll(db));
+        assertThrows(SQLiteConstraintException.class, () -> BackupJsonRepository.importSessions(db, invalid.toString()));
+        assertFalse(db.getWritableDatabase().inTransaction());
+        assertEquals(before, BackupJsonRepository.exportAll(db));
+
+        assertEquals(1, BackupJsonRepository.importAll(db, before));
+        assertEquals(1, BackupJsonRepository.importSessions(db, before));
+        assertEquals(2, db.trackers().size());
+        assertEquals(3, db.sessions().size());
+        assertEquals(55, new JSONObject(db.records(session.id).get(field.id).valuesJson).getInt(field.key));
+    }
+
+    @Test
+    public void sessionOnlyImportAfterReorderKeepsIdsAndSkipsUnknownReferences() throws Exception {
+        Tracker tracker = db.trackers().get(0);
+        FieldDefinition field = tracker.fields.get(0);
+        Session session = db.session(db.createSession(tracker.id));
+        db.saveRecords(session, Collections.singletonMap(field.id, Collections.singletonMap(field.key, 15)));
+        FieldRecord before = db.records(session.id).get(field.id);
+        JSONObject backup = new JSONObject(BackupJsonRepository.exportSessions(db));
+        JSONObject valid = backup.getJSONArray("sessions").getJSONObject(0);
+        valid.getJSONArray("records").put(new JSONObject().put("fieldId", -123)
+                .put("values", new JSONObject().put("unknown", 99)));
+        backup.getJSONArray("sessions").put(new JSONObject(valid.toString()).put("trackerId", -123));
+        JSONObject edited = new JSONObject(JsonUtil.trackerToJson(tracker));
+        edited.getJSONArray("fields").getJSONObject(0).put("order", 10);
+        TrackerJsonRepository.updateTracker(db, tracker.id, edited.toString());
+
+        assertEquals(1, BackupJsonRepository.importSessions(db, backup.toString()));
+
+        assertEquals(1, db.trackers().size());
+        assertEquals(2, db.sessions().size());
+        for (Session saved : db.sessions()) {
+            assertEquals(1, db.recordCount(saved.id));
+            assertEquals(15, new JSONObject(db.records(saved.id).get(field.id).valuesJson).getInt(field.key));
+        }
+        assertEquals(before.id, db.records(session.id).get(field.id).id);
+        assertEquals(before.createdAt, db.records(session.id).get(field.id).createdAt);
+        assertEquals(before.updatedAt, db.records(session.id).get(field.id).updatedAt);
     }
 
     private void resetDb() {

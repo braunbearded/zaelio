@@ -50,7 +50,7 @@ if ! [[ $version_code =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-if git rev-parse "v$version_name" >/dev/null 2>&1; then
+if git rev-parse --verify "refs/tags/v$version_name" >/dev/null 2>&1; then
     echo "Tag v$version_name already exists" >&2
     exit 1
 fi
@@ -125,10 +125,10 @@ fi
 if yesno "Push branch and tag now" "n"; then
     verify_signing_key
     branch=$(git branch --show-current)
-    git push origin "$branch"
-    git push origin "v$version_name"
+    git push origin "refs/heads/$branch"
+    git push origin "refs/tags/v$version_name"
 else
     echo "Push later with:"
-    echo "  git push origin $(git branch --show-current)"
-    echo "  git push origin v$version_name"
+    echo "  git push origin refs/heads/$(git branch --show-current)"
+    echo "  git push origin refs/tags/v$version_name"
 fi

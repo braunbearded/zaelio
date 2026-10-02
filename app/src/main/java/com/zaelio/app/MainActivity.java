@@ -149,7 +149,7 @@ public class MainActivity extends Activity {
         setBackAction(null);
         base();
 
-        root.addView(ui.appBar("Zaelio", false, null, true, this::showOverflowMenu));
+        root.addView(ui.appBar("Zaelio", true, this::showOverflowMenu));
 
         FrameLayout content = new FrameLayout(this);
         LinearLayout.LayoutParams contentLp = new LinearLayout.LayoutParams(-1, 0, 1);
@@ -159,9 +159,9 @@ public class MainActivity extends Activity {
         content.addView(body, new FrameLayout.LayoutParams(-1, -1));
 
         if (tab == 0) {
-            sessions(body);
+            homeUi.renderSessions(body);
         } else {
-            trackers(body);
+            homeUi.renderTrackers(body);
         }
 
         content.addView(floatingActionButton(tab));
@@ -301,11 +301,4 @@ public class MainActivity extends Activity {
         settingsUi.renderAbout(root);
     }
 
-    private void sessions(FrameLayout body) {
-        homeUi.renderSessions(body);
-    }
-
-    private void trackers(FrameLayout body) {
-        homeUi.renderTrackers(body);
-    }
 }

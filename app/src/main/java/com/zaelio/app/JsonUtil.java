@@ -32,7 +32,7 @@ final class JsonUtil {
         try {
             JSONObject object = new JSONObject();
             for (Map.Entry<String, Object> entry : values.entrySet()) {
-                object.put(entry.getKey(), entry.getValue());
+                object.put(entry.getKey(), entry.getValue() == null ? JSONObject.NULL : entry.getValue());
             }
             return object.toString();
         } catch (JSONException e) {
@@ -80,6 +80,8 @@ final class JsonUtil {
         values.put("sortOrder", field.optInt("order", fallbackOrder));
         if (field.has("defaultValue") && !field.isNull("defaultValue")) {
             values.put("defaultValue", String.valueOf(field.get("defaultValue")));
+        } else {
+            values.putNull("defaultValue");
         }
         values.put("incrementValue", field.optDouble("increment", 1));
         values.put("required", field.optBoolean("required", false) ? 1 : 0);

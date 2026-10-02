@@ -100,23 +100,17 @@ final class BackupJsonRepository {
         long now = System.currentTimeMillis();
 
         if (!includeTrackers) {
-            Cursor trackerCursor = db.rawQuery("SELECT id FROM trackers", null);
-            try {
+            try (Cursor trackerCursor = db.rawQuery("SELECT id FROM trackers", null)) {
                 while (trackerCursor.moveToNext()) {
                     long id = trackerCursor.getLong(0);
                     trackerIds.put(id, id);
                 }
-            } finally {
-                trackerCursor.close();
             }
-            Cursor fieldCursor = db.rawQuery("SELECT id FROM fields", null);
-            try {
+            try (Cursor fieldCursor = db.rawQuery("SELECT id FROM fields", null)) {
                 while (fieldCursor.moveToNext()) {
                     long id = fieldCursor.getLong(0);
                     fieldIds.put(id, id);
                 }
-            } finally {
-                fieldCursor.close();
             }
         }
 
@@ -135,7 +129,7 @@ final class BackupJsonRepository {
                 trackerValues.put("description", tracker.optString("description", ""));
                 trackerValues.put("createdAt", tracker.optLong("createdAt", now));
                 trackerValues.put("updatedAt", tracker.optLong("updatedAt", now));
-                long newTrackerId = db.insert("trackers", null, trackerValues);
+                long newTrackerId = db.insertOrThrow("trackers", null, trackerValues);
                 long oldTrackerId = tracker.optLong("id", newTrackerId);
                 trackerIds.put(oldTrackerId, newTrackerId);
                 imported++;
@@ -146,7 +140,7 @@ final class BackupJsonRepository {
                 }
                 for (int j = 0; j < fields.length(); j++) {
                     JSONObject field = fields.getJSONObject(j);
-                    long newFieldId = db.insert("fields", null, JsonUtil.fieldValuesFromJson(field, newTrackerId, j));
+                    long newFieldId = db.insertOrThrow("fields", null, JsonUtil.fieldValuesFromJson(field, newTrackerId, j));
                     fieldIds.put(field.optLong("id", newFieldId), newFieldId);
                 }
             }
@@ -163,7 +157,7 @@ final class BackupJsonRepository {
                     sessionValues.put("trackerId", newTrackerId);
                     sessionValues.put("createdAt", session.optLong("createdAt", now));
                     sessionValues.put("updatedAt", session.optLong("updatedAt", now));
-                    long newSessionId = db.insert("sessions", null, sessionValues);
+                    long newSessionId = db.insertOrThrow("sessions", null, sessionValues);
                     if (!includeTrackers) {
                         imported++;
                     }
@@ -187,7 +181,7 @@ final class BackupJsonRepository {
                         recordValues.put("valuesJson", valuesJson == null ? "{}" : valuesJson.toString());
                         recordValues.put("createdAt", record.optLong("createdAt", now));
                         recordValues.put("updatedAt", record.optLong("updatedAt", now));
-                        db.insert("field_records", null, recordValues);
+                        db.insertOrThrow("field_records", null, recordValues);
                     }
                 }
             }

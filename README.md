@@ -9,15 +9,27 @@ Kontakt/Bugs: https://github.com/braunbearded/zaelio/issues
 ## ✨ Features
 
 - Eigene Tracker mit global sortierten Feldern erstellen; neue Elemente scrollen im Editor automatisch in den sichtbaren Bereich
+- Tracker-Felder umsortieren oder umbenennen, ohne gespeicherte Session-Werte zu verlieren
 - Sessions erfassen und fortsetzen, mit großen Plus/Minus-Buttons und Material-Feldern für Text, Zahlen und Timer
 - Session-Felder minimal animiert ein-/ausklappen; Startzustand in den Einstellungen wählen
-- Listen-Einträge per Long-Press, Links-Swipe oder `...`-Menü löschen
+- Listen-Einträge per Long-Press, Links-Swipe oder `...`-Menü löschen; abgebrochene Swipes lösen keine Löschaktion aus
 - Sessions und Tracker per Drag-Handle in der Übersicht sortieren
 - Android-Zurück navigiert sinnvoll; auf Home beendet erst ein schneller Doppel-Zurück-Druck die App
 - Werte lokal in SQLite speichern
 - Tracker, Sessions oder komplette Backups als JSON importieren/exportieren
 - Helles/dunkles Design, Schriftgröße, Akzentfarbe, globale Feldgröße und Session-Feld-Startzustand einstellbar
 - Kein Google Play Services, kein Firebase, keine Cloud
+
+## Tracker bearbeiten und Session-Daten
+
+- Felder behalten beim Bearbeiten ihre interne ID. Änderungen an Reihenfolge, Feldname, Tracker-Name oder Feldeinstellungen löschen keine gespeicherten Werte.
+- Beim Umbenennen eines Feldes werden die JSON-Schlüssel seiner gespeicherten Werte mit aktualisiert; auch „Vorherigen Wert übernehmen“ funktioniert weiter.
+- Neue oder kopierte Felder bekommen eigene IDs und übernehmen keine Session-Werte des ursprünglichen Feldes. Beim Löschen eines Feldes werden nur dessen Werte entfernt; andere Felder und die Sessions bleiben erhalten.
+- Tracker-Änderungen werden atomar gespeichert: Fehler rollen die gesamte Änderung zurück. Die Datenbank bleibt auf Schema v8; dieses Update benötigt keine Migration.
+- Gelöschte Felder verlassen auch die Sortierliste des Editors; anschließendes Verschieben speichert die sichtbare Reihenfolge.
+- Leere Session-Eingaben werden als explizites JSON-`null` gespeichert. Bei „Vorherigen Wert übernehmen“ bleibt ein zuvor geleerter Wert leer, statt auf den Standardwert zurückzufallen.
+- Backup-Imports sind atomar, auch bei SQLite-Schreibfehlern (z. B. doppelten Records). Fehlerhafte Imports hinterlassen keine teilweise importierten Daten; unbekannte Session-/Feldreferenzen werden weiterhin übersprungen.
+- Bereits durch ältere Versionen gelöschte Werte lassen sich nur aus einem zuvor erstellten Backup wiederherstellen. JSON-Imports legen weiterhin neue Tracker/Sessions an, statt bestehende zu überschreiben.
 
 ## 📱 Screenshots
 
@@ -88,11 +100,13 @@ Release-Builds sollten mit JDK 21 laufen, damit GitHub-Release und F-Droid-Build
 
 Das Script aktualisiert Version, `CHANGELOG.md` und den Fastlane-Changelog für den `versionCode`, kann Tests/Release-Build ausführen und Commit/Tag erstellen. Danach schreibt es die F-Droid-Metadaten mit dem vollen Release-Commit-Hash in einen zweiten Commit. Vor einem direkten Push prüft es den lokalen APK-Signing-Zertifikat-Hash. Die GitHub Action baut aus dem Tag eine signierte Release-APK und hängt sie an den GitHub Release.
 
+Versionsbranch und Tag dürfen denselben Namen haben (z. B. `v1.0.9`). Das Release-Script prüft gezielt Tags und verwendet beim Push eindeutige `refs/heads/...`- bzw. `refs/tags/...`-Referenzen.
+
 Tag prüfen oder bei Fehler löschen:
 
 ```bash
 git tag
-git show v1.1.0
+git show refs/tags/v1.1.0
 git tag -d v1.1.0
 git push origin :refs/tags/v1.1.0
 ```
@@ -173,11 +187,18 @@ Lokale Unit-Tests laufen mit JUnit und Robolectric:
 ./gradlew testDebugUnitTest
 ```
 
+GitHub Actions führt bei jedem Push auf einen Versionsbranch mit Präfix `v<major>.<minor>.<patch>` (z. B. `v1.2.3`, `v1.2.3-fix` oder `v1.2.3/feature`) dieselben Tests aus: `.github/workflows/tests.yml`, Ubuntu und JDK 21, ohne Signing-Secrets oder Release-Veröffentlichung. Pushes auf Versionstags `v*` werden weiterhin von `.github/workflows/release.yml` getestet und veröffentlicht.
+
 Aktueller Fokus:
 
-- `JsonUtilTest` prüft JSON-Roundtrips und Tracker-Export.
+- `JsonUtilTest` prüft JSON-Roundtrips einschließlich expliziter `null`-Schlüssel und Tracker-Export.
 - `TrackingDatabaseTest` prüft Seed-Daten, Sessions, Records, Previous Values, Löschlogik, Batch-Speicherung, Übersichtssortierung und Migration auf Schema v8.
-- `BackupJsonRepositoryTest` prüft alle Backup-Export/Import-Varianten gegen Beispiel-JSON unter `app/src/test/resources/backup-fixtures/`.
+- `BackupJsonRepositoryTest` prüft alle Backup-Export/Import-Varianten gegen Beispiel-JSON unter `app/src/test/resources/backup-fixtures/`, Rollback nach teilweise ausgeführtem Import (JSON- und SQLite-Fehler, einschließlich doppelter Records) sowie Session-Import nach Feldsortierung mit unbekannten Referenzen.
+- `TrackerJsonRepositoryTest` prüft Werterhalt über mehrere Sessions bei Sortierung, Metadatenänderungen, Umbenennung/Schlüsseltausch, Hinzufügen/Löschen, Duplikaten, Backup-Import und Datenbank-Neuöffnung. Fehlerfälle umfassen fehlende IDs/Tracker, fehlerhafte Neuanlage und beschädigte gespeicherte JSON-Werte; auch das Entfernen aller Felder muss Sessions und Zeitstempel erhalten.
+- `TrackerFlowUiTest` prüft Drag-/Autosave (auch nach dem Löschen eines mittleren Feldes), Umbenennen, Kopieren/Löschen und leere Namen im tatsächlichen Editor sowie stabile IDs. Session-Tests prüfen bearbeitbare Controls, Debounce-Neustart und Dirty-Field-Speicherung, sofortiges Speichern und Timer-Stopp beim Verlassen sowie die Unterscheidung zwischen gespeicherten Werten, explizitem `null` und fehlenden Vorbelegungswerten einschließlich Leeren/Speichern/Vorbelegen über die UI.
+- `DeleteGestureHelperTest` prüft Richtung/Länge von Swipes, abgebrochene Gesten, ausgeschlossene Eingabe-Unterbäume, Long-Press-Abbruch, nicht stapelbare Bestätigungsdialoge, verzögerte Löschung und nicht-farbliches Auswahlfeedback bei roter Akzentfarbe.
+
+Die Tests prüfen Verhalten und Regressionen; eine automatische Zeilen-/Branch-Coverage-Auswertung ist aktuell nicht eingerichtet.
 
 Zusätzlicher Build-Check:
 
