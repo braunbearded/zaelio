@@ -23,7 +23,7 @@ This is a single-module Android app without Google Play Services.
 - `HomeUi.java` renders session/tracker overviews, delete gestures, overflow-menu delete, and overview drag ordering.
 - `ReorderHelper.java` contains shared constrained drag-reorder touch logic.
 - `TrackerFlowUi.java` owns tracker editor, session flow, tracker selection, session autosave debounce/batching, and timer lifecycle.
-- `FieldInputUi.java` renders session field controls, collapsible field cards, timers, numeric controls, and multiline text.
+- `FieldInputUi.java` renders editable session field controls, collapsible field cards, timers, numeric controls, and multiline text; there is currently no read-only session mode.
 - `DeleteGestureHelper.java` owns shared long-press/left-swipe delete behavior and delete dialog guarding.
 - `TrackerJsonRepository.java`, `BackupJsonRepository.java`, `JsonUtil.java`, `FormatUtil.java`, and `Models.java` cover JSON persistence, backup import/export, formatting, and models.
 - `app/src/main/res/` contains resources and styles.
@@ -59,12 +59,12 @@ Follow the existing Java style:
 ## UI Guidelines
 Keep UI changes consistent with the current Material 3 direction:
 
-- Top app bar with app title and overflow menu.
+- Top app bar with app title and overflow menu; back actions use the footer or Android navigation, not an unused app-bar back branch.
 - Bottom navigation with two equal-width tabs.
 - Icon and label color indicate the selected tab only.
 - Footer touch areas stay rectangular and extend to the edges.
 - Settings, data transfer, and about screens stay compact and scrollable on small screens.
-- Shared screen/dialog helpers belong in `ui/AppUi.java`.
+- Shared screen/dialog helpers and input color state lists belong in `ui/AppUi.java`; reuse `backFooter()`, `inputHintStateList()`, and `inputBorderStateList()` instead of duplicating them in screens.
 - Screen-specific settings logic belongs in `ui/SettingsUi.java`.
 - Overview lists, delete gestures, and drag ordering belong in `HomeUi.java`.
 - Shared delete gesture mechanics belong in `DeleteGestureHelper.java`.
@@ -77,14 +77,19 @@ Keep UI changes consistent with the current Material 3 direction:
 ## Persistence and Performance Notes
 Be careful before changing database, editor, autosave, or import/export flows.
 
-- Database migrations must be backward compatible. `TrackingDatabase.migrateToFieldsOnly()` is sensitive to cursor column indexes.
-- Editing a tracker through `TrackerJsonRepository.updateTracker()` rebuilds fields and can delete existing `field_records`; avoid accidental session data loss.
+- Keep logic-only fixes on schema v8: the current `TrackingDatabase.onUpgrade()` destructively resets older schemas. Future migrations must preserve user data.
+- Close SQLite cursors with try-with-resources. Keep transaction `endTransaction()` calls in `finally`; cursor cleanup does not replace transaction rollback.
+- `TrackerJsonRepository.updateTracker()` updates fields in place by stable field ID, migrates `field_records.fieldKey` and `valuesJson` on key changes, and deletes records only for removed fields. Keep this entire operation transactional; do not rebuild all fields or delete all tracker records on edits.
+- `TrackerFlowUi` must serialize existing field IDs and adopt newly persisted IDs after each autosave. New/copied fields use `id: 0`; tracker duplication/import creates fresh IDs. Update JSON requires an explicit ID for every field; missing, unknown/foreign or repeated field IDs and empty/duplicate keys must fail without changing data. Derive editor field existence from `fieldId > 0`, not a separate flag.
 - Overview ordering is persisted through `overviewOrder`; new rows should remain visible near the top and migrations should preserve the old newest-first default order.
+- The tracker editor's field list must match its visible rows and order. Remove deleted editors from the list rather than keeping tombstone flags; drag-reorder swaps adjacent active entries.
+- Serialize explicit null values as `JSONObject.NULL`, not Java `null` passed to `JSONObject.put()` (which removes the key). Missing keys and cleared values have different prefill semantics.
+- Backup imports must use `insertOrThrow()` so SQLite failures roll back the entire transaction rather than silently committing a partial import. Unknown references continue to be skipped.
 - Session input autosave should stay debounced and batched; avoid per-keystroke or per-timer-tick database writes.
 - Timer state in `TrackerFlowUi` is in-memory and should be cleared on screen exit or activity destruction.
 - Timer UI ticks should update display only; persistence should happen on user changes, debounce flush, or exit.
 - Delete candidate feedback must remain clear even when the accent color is red; keep non-color cues such as strikethrough/scale/alpha alongside vibration.
-- Delete dialogs should not stack; interactive inputs/dropdowns should not accidentally trigger delayed delete gestures.
+- Delete dialogs should not stack; interactive inputs/dropdowns should not accidentally trigger delayed delete gestures. `ACTION_CANCEL` must clean up the gesture without initiating swipe-delete selection.
 
 ## Testing Guidelines
 Unit tests live under `app/src/test/` and use JUnit 4 plus Robolectric for Android SQLite coverage. Instrumented tests, if needed, belong under `app/src/androidTest/`.
@@ -95,9 +100,11 @@ Prioritize tests for:
 
 - SQLite schema shape and destructive upgrades, especially keeping removed item tables/columns out.
 - Tracker/session JSON import/export and editor autosave behavior.
-- Session record preservation when tracker definitions are edited or imported.
+- Session record preservation (including IDs, values, and timestamps) across tracker field reorder/rename, repeated editor autosave, additions/deletions, duplication, backup import, and database reopening; rollback of invalid updates.
 - Numeric, duration, and string field parsing, field-size behavior, autosave batching, and session field collapse behavior.
-- Delete gesture edge cases that could trigger accidental or stacked dialogs.
+- Delete gesture edge cases that could trigger accidental or stacked dialogs: cancelled swipes/long presses, excluded input subtrees, confirmation/cancellation, delete delay, and non-color feedback with a red accent.
+- Partial-write rollback during new tracker creation, record-key migration with malformed stored JSON, and backup import; successful retry must remain possible.
+- Session debounce restart/dirty-field isolation, exit flush/timer cleanup, and prefill precedence for stored values, explicit null, and missing keys.
 
 ## Documentation Rules
 Update docs in the same change when any of these change:
@@ -118,18 +125,18 @@ Common targets:
 If docs are not updated, final response must include: `Docs unchanged: <reason>`.
 
 ## Release & F-Droid Guidelines
-For every new public version, prefer `scripts/release.sh`; it prompts for version, changelog, checks, commit/tag, push, and updates F-Droid metadata in a second commit with the full release commit hash.
+For every new public version, prefer `scripts/release.sh`; it prepares a version branch, version/Fastlane changelogs, optional tests/debug build and preparation commit, and pushes only the branch. It must not create/push a release tag or write a speculative F-Droid commit hash before merge.
 
-Manual flow:
+Release flow:
 
-1. Increase `versionCode` and `versionName` in `app/build.gradle`.
-2. Update `CHANGELOG.md` with user-visible changes.
-3. Ensure `scripts/release.sh` creates `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` for the same release; keep it under 500 characters so F-Droid shows "What's New".
-4. Run `./gradlew testDebugUnitTest` and, for release-impacting changes, `./gradlew assembleDebug` or `./gradlew assembleRelease`.
-5. Commit the version change, then create a matching tag such as `v1.1.0`.
-6. Push the branch and tag; the tag triggers `.github/workflows/release.yml` to build and attach the signed APK to a GitHub Release.
-7. For F-Droid, ensure `LICENSE`, README metadata, `fastlane/metadata/android/en-US/`, screenshots, and changelog are current.
-8. Always update `docs/fdroiddata/com.zaelio.app.yml` and submitted `fdroiddata` metadata for the new `versionCode` with a full commit hash, `Binaries`, and `AllowedAPKSigningKeys`.
+1. Increase `versionCode` and `versionName` in `app/build.gradle` on a matching branch such as `v1.1.0` (optional `-suffix` or `/suffix`). Keep Fastlane notes at most 500 characters and move `Unreleased` details into that version's changelog.
+2. Run `./gradlew testDebugUnitTest` and `./gradlew assembleDebug`. For release-tooling changes also run `python3 -m unittest discover -s scripts -p 'test_*.py'` and validate both workflows with actionlint when available.
+3. Push the version branch and open a same-repository PR into `main`. `.github/workflows/tests.yml` tests/builds a debug APK and maintains its PR download comment only on PR `opened`, `reopened`, and `synchronize`; standalone branch pushes must not build duplicate previews. Newer runs cancel older runs of the same PR. The build job is read-only and the comment job never checks out PR code.
+4. Merge the PR. `.github/workflows/release.yml` checks out the exact merge/squash commit, validates branch/version/Fastlane data with `scripts/release_ci.py`, tests, signs and verifies the APK, then creates/reuses a matching tag and publishes directly in the same job. GITHUB_TOKEN-created tags do not trigger another workflow. Reject conflicting tags instead of moving them.
+5. The merge workflow updates `docs/fdroiddata/com.zaelio.app.yml` to the full tagged merge hash in a follow-up commit on `main` and uploads the metadata as an artifact. Branch rules must permit this bot push; otherwise apply the artifact through a separate PR. Never overwrite a newer version's metadata; finish one version's release before merging the next.
+6. Keep `LICENSE`, README/Fastlane metadata, screenshots and signing secrets current. After publication update submitted `fdroiddata` metadata and run the reproducibility check. Preserve `Binaries` and `AllowedAPKSigningKeys`.
+
+Closed-but-unmerged PRs, non-version PRs, fork PRs, and tag pushes must not publish releases. Keep signing secrets away from preview jobs and never use `pull_request_target` to build an untrusted head. The release job must bind to the `release` environment; configure its server-side deployment branch policy for `main` only, with optional approval, and move signing secrets out of repository/organization scope accessible to branch workflows. YAML alone does not configure protection rules. Pin third-party actions to verified full upstream commit SHAs.
 
 Before F-Droid submission or dependency/toolchain upgrades, verify F-Droid buildserver support for the current Android Gradle Plugin and `compileSdk`.
 
@@ -149,6 +156,6 @@ Pull requests should include:
 
 ## Security & Configuration
 - Do not commit `local.properties`, keystores, passwords, API keys, or other machine-specific files.
-- GitHub release signing must use repository secrets.
+- GitHub release signing must use secrets in the protected `release` environment; do not keep signing credentials in repository/organization scope accessible to version-branch workflows.
 - The app is Android-only, SQLite-backed, and should not gain hidden Google service dependencies.
 - For F-Droid/OSS builds, only use free/open dependencies.

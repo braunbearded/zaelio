@@ -89,7 +89,8 @@ final class DeleteGestureHelper {
                     if (skipClick != null) {
                         skipClick[0] = true;
                     }
-                    if (!deleteStarted[0] && dx < -ui.px(DELETE_SWIPE_TRIGGER_DP) && Math.abs(dx) > Math.abs(dy) * 1.5f) {
+                    if (event.getAction() == MotionEvent.ACTION_UP && !deleteStarted[0]
+                            && dx < -ui.px(DELETE_SWIPE_TRIGGER_DP) && Math.abs(dx) > Math.abs(dy) * 1.5f) {
                         deleteStarted[0] = true;
                         deleteAction.accept(markDeleteCandidate(activity, theme, ui, targetView), () -> animateDelete(ui, targetView));
                     }

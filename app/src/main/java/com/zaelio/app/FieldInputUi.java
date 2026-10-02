@@ -43,7 +43,6 @@ final class FieldInputUi {
             FieldDefinition field,
             Map<String, Object> values,
             Map<String, View> inputs,
-            boolean readOnly,
             boolean collapsed,
             Runnable onChange) {
         LinearLayout fieldBox = ui.compactCard();
@@ -51,7 +50,7 @@ final class FieldInputUi {
         fieldBoxLp.bottomMargin = ui.spaceM();
         box.addView(fieldBox, fieldBoxLp);
 
-        TextView title = ui.titleText(fieldLabel(field));
+        TextView title = ui.titleText(field.label);
         ImageView expand = ui.expandIcon();
         LinearLayout header = ui.listRow(null, title, expand);
         fieldBox.addView(header);
@@ -67,17 +66,17 @@ final class FieldInputUi {
 
         Object value = values.get(field.key);
         if ("string".equals(field.type)) {
-            stringControl(content, field, value, inputs, readOnly, onChange);
+            stringControl(content, field, value, inputs, onChange);
             return;
         }
         if ("duration".equals(field.type)) {
-            timerControl(content, field, value, inputs, readOnly, onChange);
+            timerControl(content, field, value, inputs, onChange);
             return;
         }
-        numericControl(content, field, value, inputs, readOnly, onChange);
+        numericControl(content, field, value, inputs, onChange);
     }
 
-    private void stringControl(LinearLayout fieldBox, FieldDefinition field, Object value, Map<String, View> inputs, boolean readOnly, Runnable onChange) {
+    private void stringControl(LinearLayout fieldBox, FieldDefinition field, Object value, Map<String, View> inputs, Runnable onChange) {
         EditText editText = styledEditText(value);
         editText.setSingleLine(false);
         editText.setMinLines(1);
@@ -87,15 +86,12 @@ final class FieldInputUi {
         editText.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         editText.setTextSize(ui.sp(18));
         editText.setPadding(ui.spaceM(), ui.spaceM(), ui.spaceM(), ui.spaceM());
-        editText.setEnabled(!readOnly);
-        if (!readOnly) {
-            ui.onTextChanged(editText, onChange);
-        }
-        fieldBox.addView(ui.outlinedInput(fieldLabel(field), editText), new LinearLayout.LayoutParams(-1, -2));
+        ui.onTextChanged(editText, onChange);
+        fieldBox.addView(ui.outlinedInput(field.label, editText), new LinearLayout.LayoutParams(-1, -2));
         inputs.put(field.key, editText);
     }
 
-    private void timerControl(LinearLayout fieldBox, FieldDefinition field, Object value, Map<String, View> inputs, boolean readOnly, Runnable onChange) {
+    private void timerControl(LinearLayout fieldBox, FieldDefinition field, Object value, Map<String, View> inputs, Runnable onChange) {
         EditText display = styledEditText(FormatUtil.formatMs(FormatUtil.toLong(value)));
         display.setTextSize(ui.sp(18));
         display.setPadding(ui.spaceM(), ui.spaceM(), ui.spaceM(), ui.spaceM());
@@ -106,7 +102,7 @@ final class FieldInputUi {
         int timerHeight = numericHeight();
         LinearLayout.LayoutParams displayLp = new LinearLayout.LayoutParams(-1, -2);
         displayLp.bottomMargin = ui.spaceS();
-        fieldBox.addView(ui.outlinedInput(fieldLabel(field), display), displayLp);
+        fieldBox.addView(ui.outlinedInput(field.label, display), displayLp);
 
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -118,9 +114,6 @@ final class FieldInputUi {
         row.addView(toggle, toggleLp);
         row.addView(reset, new LinearLayout.LayoutParams(0, timerHeight, 1f));
         fieldBox.addView(row);
-
-        toggle.setEnabled(!readOnly);
-        reset.setEnabled(!readOnly);
 
         toggle.setOnClickListener(v -> {
             if (timers.containsKey(field.key)) {
@@ -145,7 +138,7 @@ final class FieldInputUi {
         inputs.put(field.key, display);
     }
 
-    private void numericControl(LinearLayout fieldBox, FieldDefinition field, Object value, Map<String, View> inputs, boolean readOnly, Runnable onChange) {
+    private void numericControl(LinearLayout fieldBox, FieldDefinition field, Object value, Map<String, View> inputs, Runnable onChange) {
         Button minus = ui.secondaryButton("−");
         Button plus = ui.primaryButton("+");
         EditText editText = styledEditText(value);
@@ -154,9 +147,6 @@ final class FieldInputUi {
                 : InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED);
         editText.setTextSize(ui.sp(18));
         editText.setPadding(ui.spaceM(), ui.spaceM(), ui.spaceM(), ui.spaceM());
-        editText.setEnabled(!readOnly);
-        minus.setEnabled(!readOnly);
-        plus.setEnabled(!readOnly);
 
         View.OnClickListener adjust = v -> {
             hideKeyboard(editText);
@@ -168,13 +158,11 @@ final class FieldInputUi {
         };
         minus.setOnClickListener(adjust);
         plus.setOnClickListener(adjust);
-        if (!readOnly) {
-            ui.onTextChanged(editText, onChange);
-        }
+        ui.onTextChanged(editText, onChange);
 
         LinearLayout.LayoutParams inputLp = new LinearLayout.LayoutParams(-1, -2);
         inputLp.bottomMargin = ui.spaceS();
-        fieldBox.addView(ui.outlinedInput(fieldLabel(field), editText), inputLp);
+        fieldBox.addView(ui.outlinedInput(field.label, editText), inputLp);
 
         LinearLayout row = new LinearLayout(activity);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -200,10 +188,6 @@ final class FieldInputUi {
         return editText;
     }
 
-
-    private String fieldLabel(FieldDefinition field) {
-        return field.label;
-    }
 
     private void setCollapsed(View content, ImageView expand, boolean collapsed) {
         expand.animate().rotation(collapsed ? 0f : 180f).setDuration(150).start();

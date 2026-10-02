@@ -3,10 +3,7 @@ package com.zaelio.app;
 import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.graphics.Rect;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.RippleDrawable;
 import android.os.Build;
 import android.os.Handler;
 import android.text.InputType;
@@ -30,9 +27,8 @@ import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputLayout;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -79,7 +75,7 @@ public final class TrackerFlowUi {
         List<Tracker> trackers = db.trackers();
         setBackAction.accept(backToSessions);
         base();
-        root.addView(ui.appBar("Tracker auswählen", false, null, false, null));
+        root.addView(ui.appBar("Tracker auswählen", false, null));
 
         ScrollView scrollView = new ScrollView(activity);
         scrollView.setFillViewport(true);
@@ -115,7 +111,7 @@ public final class TrackerFlowUi {
         }
 
         root.addView(scrollView, new LinearLayout.LayoutParams(-1, 0, 1));
-        root.addView(footerButton("Zurück", backToSessions));
+        root.addView(ui.backFooter(backToSessions));
     }
 
     private View selectionRow(String title) {
@@ -165,7 +161,7 @@ public final class TrackerFlowUi {
         }
 
         base();
-        root.addView(ui.appBar(isNew ? "Neuer Tracker" : "Tracker bearbeiten", false, null, !isNew, v -> showTrackerMenu(v, id, tracker.name)));
+        root.addView(ui.appBar(isNew ? "Neuer Tracker" : "Tracker bearbeiten", !isNew, v -> showTrackerMenu(id)));
 
         ScrollView scrollView = new ScrollView(activity);
         scrollView.setFillViewport(true);
@@ -215,28 +211,10 @@ public final class TrackerFlowUi {
         fieldsContainer.setOrientation(LinearLayout.VERTICAL);
         body.addView(fieldsContainer, new LinearLayout.LayoutParams(-1, -2));
 
-        final Runnable[] updateFieldsHeaderRef = new Runnable[1];
-        updateFieldsHeaderRef[0] = () -> {
-            int count = 0;
-            for (FieldEditorViews fieldViews : form.fields) {
-                if (!fieldViews.removed) {
-                    count++;
-                }
-            }
-            fieldsCount.setText(String.valueOf(count));
-        };
+        Runnable updateFieldsHeader = () -> fieldsCount.setText(String.valueOf(form.fields.size()));
 
         final long[] trackerIdRef = new long[]{id};
-        final Runnable[] persistRef = new Runnable[1];
-        Runnable scheduleSave = () -> {
-            if (updateFieldsHeaderRef[0] != null) {
-                updateFieldsHeaderRef[0].run();
-            }
-            if (persistRef[0] != null) {
-                persistRef[0].run();
-            }
-        };
-        persistRef[0] = () -> {
+        Runnable persist = () -> {
             try {
                 String json = trackerEditorToJson(form);
                 if (trackerIdRef[0] == -1) {
@@ -247,15 +225,26 @@ public final class TrackerFlowUi {
                 } else {
                     TrackerJsonRepository.updateTracker(db, trackerIdRef[0], json);
                 }
+                List<FieldDefinition> savedFields = db.readTracker(trackerIdRef[0]).fields;
+                int savedIndex = 0;
+                for (FieldEditorViews fieldViews : form.fields) {
+                    if (!fieldViews.labelInput.getText().toString().trim().isEmpty()) {
+                        fieldViews.fieldId = savedFields.get(savedIndex++).id;
+                    }
+                }
             } catch (Exception e) {
                 Toast.makeText(activity, e.getMessage(), Toast.LENGTH_LONG).show();
             }
+        };
+        Runnable scheduleSave = () -> {
+            updateFieldsHeader.run();
+            persist.run();
         };
 
         for (FieldDefinition field : tracker.fields) {
             addFieldEditor(scrollView, fieldsContainer, form.fields, field, scheduleSave);
         }
-        updateFieldsHeaderRef[0].run();
+        updateFieldsHeader.run();
 
         addField.setOnClickListener(v -> {
             FieldEditorViews added = addFieldEditor(scrollView, fieldsContainer, form.fields, null, scheduleSave);
@@ -273,7 +262,7 @@ public final class TrackerFlowUi {
         };
         setBackAction.accept(editorBack);
         root.addView(scrollView, new LinearLayout.LayoutParams(-1, 0, 1));
-        root.addView(footerButton("Zurück", editorBack));
+        root.addView(ui.backFooter(editorBack));
         attachTrackerAutosave(form, scheduleSave);
     }
 
@@ -281,7 +270,7 @@ public final class TrackerFlowUi {
         base();
         Map<String, View> inputs = new HashMap<>();
         root.addView(ui.appBar(tracker.name == null || tracker.name.trim().isEmpty() ? "Session" : tracker.name,
-                false, null, true, v -> showSessionMenu(v, session)));
+                true, v -> showSessionMenu(session)));
         ScrollView scrollView = new ScrollView(activity);
         LinearLayout box = new LinearLayout(activity);
         box.setOrientation(LinearLayout.VERTICAL);
@@ -314,7 +303,7 @@ public final class TrackerFlowUi {
                 };
                 handler.postDelayed(pendingSave[0], 700);
             };
-            fieldInputUi.fieldControl(box, field, values, inputs, false, theme.sessionFieldsCollapsed(), scheduleSave);
+            fieldInputUi.fieldControl(box, field, values, inputs, theme.sessionFieldsCollapsed(), scheduleSave);
         }
 
         Runnable back = () -> {
@@ -324,7 +313,7 @@ public final class TrackerFlowUi {
         };
         setBackAction.accept(back);
         root.addView(scrollView, new LinearLayout.LayoutParams(-1, 0, 1));
-        root.addView(footerButton("Zurück", back));
+        root.addView(ui.backFooter(back));
     }
 
     private Map<String, Object> initialValues(Session session, List<FieldDefinition> fieldDefinitions) {
@@ -387,9 +376,9 @@ public final class TrackerFlowUi {
 
     private TrackerEditorForm buildTrackerEditorForm(Tracker tracker) {
         TrackerEditorForm form = new TrackerEditorForm();
-        form.nameInput = labeledInput("Tracker-Name", tracker.name == null ? "" : tracker.name,
+        form.nameInput = ui.textInput("Tracker-Name", tracker.name == null ? "" : tracker.name,
                 InputType.TYPE_CLASS_TEXT);
-        form.descriptionInput = labeledInput("Beschreibung", tracker.description == null ? "" : tracker.description,
+        form.descriptionInput = ui.textInput("Beschreibung", tracker.description == null ? "" : tracker.description,
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         form.descriptionInput.setMinLines(2);
         form.descriptionInput.setGravity(Gravity.TOP);
@@ -403,27 +392,26 @@ public final class TrackerFlowUi {
 
     private FieldEditorViews addFieldEditor(ScrollView scrollView, LinearLayout container, List<FieldEditorViews> fieldEditors, FieldDefinition field, Runnable scheduleSave) {
         FieldEditorViews views = new FieldEditorViews();
-        views.existing = field != null && field.id > 0;
+        views.fieldId = field == null ? 0 : field.id;
 
         View reorder = reorderHandle();
-        TextView menu = iconAction("⋮");
+        TextView menu = ui.listIcon("⋮");
         ImageView expand = ui.expandIcon();
 
-        views.keyInput = labeledInput("Key", field == null ? "" : field.key, InputType.TYPE_CLASS_TEXT);
-        views.labelInput = labeledInput("Feldname", field == null ? "" : field.label, InputType.TYPE_CLASS_TEXT);
-        views.defaultValueInput = labeledInput("Standardwert", field == null ? "" : String.valueOf(field.defaultValue == null ? "" : field.defaultValue), InputType.TYPE_CLASS_TEXT);
-        views.incrementInput = labeledInput("Schrittweite", field == null ? "1" : String.valueOf(field.increment), InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        views.decimalsInput = labeledInput("Nachkommastellen", field == null ? "1" : String.valueOf(field.decimals), InputType.TYPE_CLASS_NUMBER);
+        views.labelInput = ui.textInput("Feldname", field == null ? "" : field.label, InputType.TYPE_CLASS_TEXT);
+        views.defaultValueInput = ui.textInput("Standardwert", field == null ? "" : String.valueOf(field.defaultValue == null ? "" : field.defaultValue), InputType.TYPE_CLASS_TEXT);
+        views.incrementInput = ui.textInput("Schrittweite", field == null ? "1" : String.valueOf(field.increment), InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        views.decimalsInput = ui.textInput("Nachkommastellen", field == null ? "1" : String.valueOf(field.decimals), InputType.TYPE_CLASS_NUMBER);
 
         TextInputLayout typeLayout = new TextInputLayout(activity);
         typeLayout.setHint(ui.t("Typ"));
         typeLayout.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
         typeLayout.setBoxBackgroundColor(theme.surfaceColor());
         typeLayout.setBoxStrokeColor(theme.accentColor());
-        typeLayout.setBoxStrokeColorStateList(inputBorderStateList());
+        typeLayout.setBoxStrokeColorStateList(ui.inputBorderStateList());
         typeLayout.setBoxStrokeWidth(ui.strokeWidth());
         typeLayout.setBoxStrokeWidthFocused(ui.focusedStrokeWidth());
-        typeLayout.setHintTextColor(inputHintStateList());
+        typeLayout.setHintTextColor(ui.inputHintStateList());
         typeLayout.setBoxCornerRadii(ui.cornerRadius(), ui.cornerRadius(), ui.cornerRadius(), ui.cornerRadius());
         typeLayout.setEndIconMode(TextInputLayout.END_ICON_DROPDOWN_MENU);
         LinearLayout.LayoutParams typeLp = new LinearLayout.LayoutParams(-1, -2);
@@ -459,8 +447,8 @@ public final class TrackerFlowUi {
         typeInput.setText(typeLabels[typeIndex(field == null ? null : field.type)], false);
         typeInput.setInputType(0);
         typeInput.setTextColor(theme.primaryTextColor());
-        typeInput.setHintTextColor(inputHintStateList());
-        typeInput.setBackgroundTintList(inputBorderStateList());
+        typeInput.setHintTextColor(ui.inputHintStateList());
+        typeInput.setBackgroundTintList(ui.inputBorderStateList());
         tintCursor(typeInput);
         typeInput.setPadding(ui.spaceM(), 0, ui.spaceM(), 0);
         typeLayout.addView(typeInput, new LinearLayout.LayoutParams(-1, ui.rowHeight()));
@@ -489,7 +477,6 @@ public final class TrackerFlowUi {
         numericRow.addView(decimalsWrap, new LinearLayout.LayoutParams(0, -2, 1));
         views.incrementWrap = incrementWrap;
         views.decimalsWrap = decimalsWrap;
-        views.numericRow = numericRow;
 
         LinearLayout editor = new LinearLayout(activity);
         editor.setOrientation(LinearLayout.VERTICAL);
@@ -519,7 +506,6 @@ public final class TrackerFlowUi {
             updateFieldSummary(views);
             scheduleSave.run();
         };
-        ui.onTextChanged(views.keyInput, fieldChanged);
         ui.onTextChanged(views.labelInput, fieldChanged);
         ui.onTextChanged(views.defaultValueInput, fieldChanged);
         ui.onTextChanged(views.incrementInput, fieldChanged);
@@ -533,20 +519,19 @@ public final class TrackerFlowUi {
             fieldChanged.run();
         });
 
-        final LinearLayout[] shellRef = new LinearLayout[1];
         Runnable duplicateAction = () -> {
             FieldEditorViews added = addFieldEditor(scrollView, container, fieldEditors, fieldFromViews(views), scheduleSave);
             scrollIntoView(scrollView, added.row);
             scheduleSave.run();
         };
         Runnable removeNow = () -> {
-            container.removeView(shellRef[0]);
+            container.removeView(row);
+            fieldEditors.remove(views);
             updateChildBottomMargins(container);
-            views.removed = true;
             scheduleSave.run();
         };
-        Runnable removeAction = () -> confirmDeleteField(views, null, () -> DeleteGestureHelper.animateDelete(ui, shellRef[0]), removeNow);
-        menu.setOnClickListener(v -> showFieldMenu(v, duplicateAction, removeAction));
+        Runnable removeAction = () -> confirmDeleteField(views, null, () -> DeleteGestureHelper.animateDelete(ui, row), removeNow);
+        menu.setOnClickListener(v -> showFieldMenu(duplicateAction, removeAction));
         View.OnClickListener toggle = v -> toggleFieldEditor(views, expand);
         expand.setOnClickListener(toggle);
         summaryRow.setOnClickListener(toggle);
@@ -554,20 +539,15 @@ public final class TrackerFlowUi {
         summaryText.setOnClickListener(toggle);
         views.summaryTitle.setOnClickListener(toggle);
         views.summaryMeta.setOnClickListener(toggle);
-        LinearLayout shell = row;
-        shellRef[0] = shell;
-
         LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
         rowLp.bottomMargin = ui.spaceM();
-        container.addView(shell, rowLp);
+        container.addView(row, rowLp);
         updateChildBottomMargins(container);
-        views.row = shell;
-        views.container = container;
+        views.row = row;
         fieldEditors.add(views);
-        shell.setTag(views);
         attachFieldReorder(reorder, container, fieldEditors, views, scheduleSave);
         BiConsumer<Runnable, Runnable> deleteGesture = (restore, animateDelete) -> confirmDeleteField(views, restore, animateDelete, removeNow);
-        DeleteGestureHelper.attachToTree(activity, theme, ui, summaryRow, shell, deleteGesture, null, reorder, menu, expand, views.summaryInput);
+        DeleteGestureHelper.attachToTree(activity, theme, ui, summaryRow, row, deleteGesture, null, reorder, menu, expand, views.summaryInput);
         setFieldExpanded(views, expand, field == null);
         return views;
     }
@@ -579,7 +559,7 @@ public final class TrackerFlowUi {
                 restore, animateDelete, removeNow);
     }
 
-    private void showFieldMenu(View anchor, Runnable duplicateAction, Runnable removeAction) {
+    private void showFieldMenu(Runnable duplicateAction, Runnable removeAction) {
         ui.showActionMenu("Feld", ui.action("Kopieren", duplicateAction), ui.action("Löschen", removeAction));
     }
 
@@ -607,7 +587,6 @@ public final class TrackerFlowUi {
 
     private FieldDefinition fieldFromViews(FieldEditorViews views) {
         FieldDefinition field = new FieldDefinition();
-        field.key = views.keyInput.getText().toString();
         field.label = views.labelInput.getText().toString();
         field.defaultValue = views.defaultValueInput.getText().toString();
         field.increment = FormatUtil.parseDouble(views.incrementInput.getText().toString(), 1);
@@ -619,14 +598,8 @@ public final class TrackerFlowUi {
     }
 
     private View reorderHandle() {
-        TextView handle = new TextView(activity);
-        handle.setText("⠿");
-        handle.setTextSize(ui.sp(24));
-        handle.setGravity(Gravity.CENTER);
-        handle.setTextColor(theme.mutedTextColor());
+        TextView handle = ui.listIcon("⠿");
         handle.setContentDescription(ui.t("Verschieben"));
-        handle.setClickable(true);
-        handle.setFocusable(true);
         return handle;
     }
 
@@ -658,21 +631,9 @@ public final class TrackerFlowUi {
     private void attachFieldReorder(View handle, LinearLayout container, List<FieldEditorViews> editors, FieldEditorViews views, Runnable onChange) {
         ReorderHelper.attach(ui, handle, container, views.row, onChange, direction -> {
             updateChildBottomMargins(container);
-            reorderList(editors, views, direction);
+            int from = editors.indexOf(views);
+            Collections.swap(editors, from, from + direction);
         });
-    }
-
-    private TextView iconAction(String text) {
-        return ui.listIcon(text);
-    }
-
-    private <T> void reorderList(List<T> list, T item, int direction) {
-        int from = list.indexOf(item);
-        int to = from + direction;
-        if (from >= 0 && to >= 0 && to < list.size()) {
-            list.remove(from);
-            list.add(to, item);
-        }
     }
 
     private void updateChildBottomMargins(LinearLayout container) {
@@ -711,32 +672,6 @@ public final class TrackerFlowUi {
                 new int[]{accent, accent, accent, normal, normal});
     }
 
-    private ColorStateList inputHintStateList() {
-        int accent = theme.accentColor();
-        int normal = theme.mutedTextColor();
-        return new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_focused},
-                        new int[]{android.R.attr.state_hovered},
-                        new int[]{android.R.attr.state_enabled},
-                        new int[]{}
-                },
-                new int[]{accent, accent, normal, normal});
-    }
-
-    private ColorStateList inputBorderStateList() {
-        int accent = theme.accentColor();
-        int normal = theme.darkMode() ? theme.secondaryTextColor() : theme.borderColor();
-        return new ColorStateList(
-                new int[][]{
-                        new int[]{android.R.attr.state_focused},
-                        new int[]{android.R.attr.state_hovered},
-                        new int[]{android.R.attr.state_enabled},
-                        new int[]{}
-                },
-                new int[]{accent, accent, normal, normal});
-    }
-
     private void tintCursor(EditText input) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             GradientDrawable cursor = new GradientDrawable();
@@ -749,17 +684,13 @@ public final class TrackerFlowUi {
     private TextInputLayout outlinedInput(String label, EditText input) {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
         lp.bottomMargin = ui.spaceM();
-        input.setHintTextColor(inputHintStateList());
+        input.setHintTextColor(ui.inputHintStateList());
         tintCursor(input);
         boolean multiline = input.getMinLines() > 1;
         input.setPadding(ui.spaceM(), multiline ? ui.spaceM() : 0, ui.spaceM(), multiline ? ui.spaceM() : 0);
         TextInputLayout layout = ui.outlinedInput(label, input);
         layout.setLayoutParams(lp);
         return layout;
-    }
-
-    private EditText labeledInput(String label, String value, int inputType) {
-        return ui.textInput(label, value, inputType);
     }
 
     private String trackerEditorToJson(TrackerEditorForm form) throws Exception {
@@ -771,13 +702,9 @@ public final class TrackerFlowUi {
         List<String> usedFieldKeys = new ArrayList<>();
         int fieldOrder = 0;
         for (FieldEditorViews fieldViews : form.fields) {
-            if (fieldViews.removed) {
-                continue;
-            }
-
             String fieldLabel = fieldViews.labelInput.getText().toString().trim();
             if (fieldLabel.isEmpty()) {
-                if (fieldViews.existing) {
+                if (fieldViews.fieldId > 0) {
                     throw new IllegalStateException(ui.t("Bestehende Felder brauchen einen Namen."));
                 }
                 continue;
@@ -785,6 +712,7 @@ public final class TrackerFlowUi {
             String fieldKey = uniqueFieldKey(fieldLabel, usedFieldKeys);
 
             JSONObject field = new JSONObject();
+            field.put("id", fieldViews.fieldId);
             field.put("key", fieldKey);
             field.put("label", fieldLabel);
             field.put("type", selectedType(fieldViews.typeInput));
@@ -878,7 +806,7 @@ public final class TrackerFlowUi {
         db.saveRecords(session, valuesByFieldId);
     }
 
-    private void showTrackerMenu(View anchor, long trackerId, String trackerName) {
+    private void showTrackerMenu(long trackerId) {
         if (trackerId != -1) {
             ui.showActionMenu("Tracker",
                     ui.action("Tracker duplizieren", () -> duplicateTracker(trackerId)),
@@ -886,7 +814,7 @@ public final class TrackerFlowUi {
         }
     }
 
-    private void showSessionMenu(View anchor, Session session) {
+    private void showSessionMenu(Session session) {
         ui.showActionMenu("Session", ui.action("Session löschen", () -> deleteSession(session.id)));
     }
 
@@ -914,23 +842,6 @@ public final class TrackerFlowUi {
         backToSessions.run();
     }
 
-    private LinearLayout footerButton(String text, Runnable onClick) {
-        LinearLayout footer = new LinearLayout(activity);
-        footer.setOrientation(LinearLayout.VERTICAL);
-        footer.setPadding(ui.spaceL(), ui.spaceS(), ui.spaceL(), ui.spaceL());
-
-        Button button = ui.backButton(text);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        button.setLayoutParams(lp);
-        button.setOnClickListener(v -> {
-            if (onClick != null) {
-                onClick.run();
-            }
-        });
-        footer.addView(button);
-        return footer;
-    }
-
     private void base() {
         root = new LinearLayout(activity);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -945,12 +856,10 @@ public final class TrackerFlowUi {
     }
 
     private static final class FieldEditorViews {
+        long fieldId;
         LinearLayout row;
-        LinearLayout container;
-        LinearLayout numericRow;
         View incrementWrap;
         View decimalsWrap;
-        EditText keyInput;
         EditText labelInput;
         EditText defaultValueInput;
         EditText incrementInput;
@@ -963,7 +872,5 @@ public final class TrackerFlowUi {
         LinearLayout editor;
         MaterialCheckBox requiredCheck;
         MaterialCheckBox prefillCheck;
-        boolean existing;
-        boolean removed;
     }
 }

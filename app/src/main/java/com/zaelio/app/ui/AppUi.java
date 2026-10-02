@@ -223,7 +223,7 @@ public final class AppUi {
         return fab;
     }
 
-    public View appBar(String titleText, boolean showBack, Runnable onBack, boolean showOverflow, View.OnClickListener overflowClick) {
+    public View appBar(String titleText, boolean showOverflow, View.OnClickListener overflowClick) {
         LinearLayout bar = new LinearLayout(activity);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
@@ -232,21 +232,12 @@ public final class AppUi {
         bar.setBackgroundColor(theme.surfaceColor());
         bar.setElevation(strokeWidth());
 
-        if (showBack) {
-            bar.addView(iconButton(R.drawable.ic_arrow_back_24, t("Zurück"), theme.accentColor(), v -> {
-                if (onBack != null) {
-                    onBack.run();
-                }
-            }), new LinearLayout.LayoutParams(px(ICON_BUTTON_SIZE_DP), px(ICON_BUTTON_SIZE_DP)));
-        }
-
         TextView title = new TextView(activity);
         title.setText(t(titleText));
         title.setTextSize(sp(20));
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setTextColor(theme.accentColor());
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, -2, 1f);
-        titleLp.leftMargin = showBack ? spaceM() : 0;
         bar.addView(title, titleLp);
 
         if (showOverflow) {
@@ -258,15 +249,11 @@ public final class AppUi {
     }
 
     private MaterialButton iconButton(int iconRes, String contentDescription, View.OnClickListener onClick) {
-        return iconButton(iconRes, contentDescription, theme.primaryTextColor(), onClick);
-    }
-
-    private MaterialButton iconButton(int iconRes, String contentDescription, int iconColor, View.OnClickListener onClick) {
         MaterialButton button = new MaterialButton(activity);
         button.setText("");
         button.setAllCaps(false);
         button.setIcon(activity.getDrawable(iconRes));
-        button.setIconTint(ColorStateList.valueOf(iconColor));
+        button.setIconTint(ColorStateList.valueOf(theme.primaryTextColor()));
         button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
         button.setIconPadding(0);
         button.setBackgroundTintList(ColorStateList.valueOf(theme.surfaceAltColor()));
@@ -282,17 +269,13 @@ public final class AppUi {
         return button;
     }
 
-    public LinearLayout settingsCard() {
+    public LinearLayout contentCard() {
         LinearLayout card = new LinearLayout(activity);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(spaceL(), spaceL(), spaceL(), spaceL());
         card.setBackground(makeRoundedCard(theme.surfaceColor(), theme.borderColor()));
         card.setElevation(focusedStrokeWidth());
         return card;
-    }
-
-    public LinearLayout contentCard() {
-        return settingsCard();
     }
 
     public LinearLayout compactCard() {
@@ -325,7 +308,7 @@ public final class AppUi {
     }
 
     public LinearLayout screenBody(LinearLayout root, String title, Runnable onBack) {
-        root.addView(appBar(title, false, null, false, null));
+        root.addView(appBar(title, false, null));
         ScrollView scrollView = new ScrollView(activity);
         scrollView.setFillViewport(true);
         LinearLayout body = new LinearLayout(activity);
@@ -334,14 +317,19 @@ public final class AppUi {
         scrollView.addView(body);
         root.addView(scrollView, new LinearLayout.LayoutParams(-1, 0, 1));
         if (onBack != null) {
-            LinearLayout footer = new LinearLayout(activity);
-            footer.setPadding(spaceL(), spaceS(), spaceL(), spaceL());
-            Button button = backButton("Zurück");
-            button.setOnClickListener(v -> onBack.run());
-            footer.addView(button, new LinearLayout.LayoutParams(-1, -2));
-            root.addView(footer);
+            root.addView(backFooter(onBack));
         }
         return body;
+    }
+
+    public LinearLayout backFooter(Runnable onBack) {
+        LinearLayout footer = new LinearLayout(activity);
+        footer.setOrientation(LinearLayout.VERTICAL);
+        footer.setPadding(spaceL(), spaceS(), spaceL(), spaceL());
+        Button button = backButton("Zurück");
+        button.setOnClickListener(v -> onBack.run());
+        footer.addView(button, new LinearLayout.LayoutParams(-1, -2));
+        return footer;
     }
 
     public LinearLayout listRow(View leading, View content, View action) {
@@ -394,7 +382,7 @@ public final class AppUi {
         return layout;
     }
 
-    private ColorStateList inputHintStateList() {
+    public ColorStateList inputHintStateList() {
         int accent = theme.accentColor();
         int normal = theme.mutedTextColor();
         return new ColorStateList(
@@ -407,7 +395,7 @@ public final class AppUi {
                 new int[]{accent, accent, normal, normal});
     }
 
-    private ColorStateList inputBorderStateList() {
+    public ColorStateList inputBorderStateList() {
         int accent = theme.accentColor();
         int normal = theme.darkMode() ? theme.secondaryTextColor() : theme.borderColor();
         return new ColorStateList(

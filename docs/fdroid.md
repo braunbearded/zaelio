@@ -80,7 +80,7 @@ Nach dem GitHub-Release kann der F-Droid-Build inklusive Reproducible-Build-Verg
 FDROIDDATA_DIR=/path/to/fdroiddata ./scripts/check-fdroid-reproducible.sh
 ```
 
-Vor dem Tag-Push geht dieser Vergleich nicht vollständig, weil die `Binaries`-Referenz-APK auf GitHub noch nicht existiert.
+Vor der Veröffentlichung durch den Versions-PR-Merge geht dieser Vergleich nicht vollständig, weil die `Binaries`-Referenz-APK auf GitHub noch nicht existiert.
 
 Manuell im `fdroiddata`-Checkout mit aktiviertem Virtualenv vorher den Android-SDK-Pfad setzen; `fdroid build` baut in einem temporären Checkout und sieht das Zaelio-`local.properties` nicht:
 
@@ -109,12 +109,24 @@ git commit -m "Add Zaelio"
 git push origin com.zaelio.app
 ```
 
-Nach einem Release erzeugt `scripts/release.sh` den passenden Fastlane-Changelog
-unter `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` und absichtlich
-einen zweiten Commit für `docs/fdroiddata/com.zaelio.app.yml`: erst nach dem
-Release-Commit ist der volle Commit-Hash für F-Droid bekannt. Wenn das Script
-direkt pusht, prüft es vorher den lokalen APK-Signing-Zertifikat-Hash gegen
-`AllowedAPKSigningKeys`.
+`scripts/release.sh` bereitet den Versionsbranch und den passenden Fastlane-Changelog
+unter `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` vor. Erst der
+Merge des Versions-PRs nach `main` erzeugt Tag und signierte Referenz-APK.
+`.github/workflows/release.yml` prüft das Signing-Zertifikat gegen
+`AllowedAPKSigningKeys` und veröffentlicht direkt im Merge-Workflow.
+Der Job verwendet das Environment `release`: vor dem Merge auf GitHub nur Branch
+`main` für Deployments zulassen und die Signing-Secrets dorthin verschieben.
+Repository-/Organization-Secrets für Branch-Workflows dürfen nicht als Kopie
+bestehen bleiben. Details und optionale Freigaben stehen im README unter
+„Release signieren“; die Environment-Schutzregeln werden nicht durch YAML angelegt.
+
+Danach setzt `scripts/release_ci.py` die F-Droid-Version und den vollständigen
+getaggten Merge-/Squash-Commit-Hash. Die Action lädt die aktualisierte Metadata-Datei
+als Artefakt hoch und erstellt einen separaten Metadaten-Commit auf `main`.
+Branchschutz muss diesen Bot-Push erlauben; andernfalls die Artefakt-Datei per
+separatem PR übernehmen. Das Release bleibt bei einem blockierten Metadaten-Push
+bereits veröffentlicht. Den externen `fdroiddata`-Fork anschließend mit dieser
+Datei aktualisieren und die Reproduzierbarkeit prüfen.
 
 Danach einen Merge Request gegen `fdroid/fdroiddata` öffnen und im RFP kommentieren:
 

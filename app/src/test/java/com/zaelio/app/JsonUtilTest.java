@@ -22,6 +22,7 @@ public class JsonUtilTest {
 
         assertEquals(12, ((Number) out.get("reps")).intValue());
         assertEquals("ok", out.get("note"));
+        assertTrue(out.containsKey("empty"));
         assertNull(out.get("empty"));
     }
 
