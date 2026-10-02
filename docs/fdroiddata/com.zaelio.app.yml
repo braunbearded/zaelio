@@ -15,7 +15,7 @@ Binaries: https://github.com/braunbearded/zaelio/releases/download/v%v/zaelio.ap
 Builds:
   - versionName: 1.0.9
     versionCode: 10
-    commit: da2bd097724e4c413204450683572c52d1202004
+    commit: 761af0bb27440bb47c7c3690f9bf988e327467cf
     subdir: app
     gradle:
       - yes
