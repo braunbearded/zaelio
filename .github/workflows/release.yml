@@ -1,7 +1,7 @@
 name: Release APK
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
     types: [closed]
 
@@ -15,6 +15,8 @@ concurrency:
 jobs:
   release:
     if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.merged == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       startsWith(github.event.pull_request.head.ref, 'v')
@@ -39,6 +41,7 @@ jobs:
         id: version
         run: |
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          git merge-base --is-ancestor "$RELEASE_SHA" origin/main
           python3 scripts/release_ci.py "$VERSION_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Test release tooling

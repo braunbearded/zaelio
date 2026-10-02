@@ -114,6 +114,11 @@ unter `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` vor. Erst d
 Merge des Versions-PRs nach `main` erzeugt Tag und signierte Referenz-APK.
 `.github/workflows/release.yml` prüft das Signing-Zertifikat gegen
 `AllowedAPKSigningKeys` und veröffentlicht direkt im Merge-Workflow.
+Der Auslöser ist `pull_request_target: closed` im Default-Branch-Kontext `main`,
+ausschließlich für bereits nach `main` gemergte Versions-PRs desselben Repositorys.
+Der Checkout verwendet den echten Merge-/Squash-Commit und prüft dessen Zugehörigkeit
+zu `main`, nicht den ungeprüften PR-Head. `pull_request` würde für den Environment-Schutz
+weiterhin als `refs/pull/N/merge` gelten; diese Referenzen niemals zum Signing zulassen.
 Der Job verwendet das Environment `release`: vor dem Merge auf GitHub nur Branch
 `main` für Deployments zulassen und die Signing-Secrets dorthin verschieben.
 Repository-/Organization-Secrets für Branch-Workflows dürfen nicht als Kopie
