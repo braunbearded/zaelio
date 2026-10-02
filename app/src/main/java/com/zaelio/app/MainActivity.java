@@ -1,6 +1,7 @@
 package com.zaelio.app;
 
-import android.app.Activity;
+import androidx.activity.OnBackPressedCallback;
+import androidx.fragment.app.FragmentActivity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -26,7 +27,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-public class MainActivity extends Activity {
+public class MainActivity extends FragmentActivity {
     private static final int REQUEST_IMPORT_JSON = 10;
     private static final int REQUEST_EXPORT_JSON = 11;
 
@@ -52,6 +53,23 @@ public class MainActivity extends Activity {
         settingsUi = new SettingsUi(this, theme, ui, this::refreshSettings, this::refreshHome);
         trackerFlowUi = new TrackerFlowUi(this, db, theme, ui, handler, () -> showHome(0), () -> showHome(1), this::setBackAction);
         homeUi = new HomeUi(this, db, theme, ui, trackerFlowUi::openSession, trackerFlowUi::editTracker, this::refreshHome);
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (currentBackAction != null) {
+                    currentBackAction.run();
+                    return;
+                }
+                long now = System.currentTimeMillis();
+                if (now - lastBackPressMs < 2000) {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                    return;
+                }
+                lastBackPressMs = now;
+                Toast.makeText(MainActivity.this, ui.t("Zum Beenden erneut Zurück drücken"), Toast.LENGTH_SHORT).show();
+            }
+        });
         showHome(0);
     }
 
@@ -69,25 +87,13 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    public void onBackPressed() {
-        if (currentBackAction != null) {
-            currentBackAction.run();
-            return;
-        }
-        long now = System.currentTimeMillis();
-        if (now - lastBackPressMs < 2000) {
-            super.onBackPressed();
-            return;
-        }
-        lastBackPressMs = now;
-        Toast.makeText(this, ui.t("Zum Beenden erneut Zurück drücken"), Toast.LENGTH_SHORT).show();
-    }
-
-    @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
         if (trackerFlowUi != null) {
             trackerFlowUi.clearTimers();
+        }
+        if (db != null) {
+            db.close();
         }
         super.onDestroy();
     }

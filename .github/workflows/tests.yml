@@ -21,6 +21,7 @@ jobs:
     outputs:
       apk-url: ${{ steps.apk.outputs.artifact-url }}
       sha: ${{ steps.source.outputs.sha }}
+      version: ${{ steps.source.outputs.version }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -37,7 +38,7 @@ jobs:
         env:
           VERSION_BRANCH: ${{ github.head_ref }}
         run: |
-          python3 scripts/release_ci.py "$VERSION_BRANCH"
+          python3 scripts/release_ci.py "$VERSION_BRANCH" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Test release tooling
@@ -65,17 +66,27 @@ jobs:
         env:
           APK_URL: ${{ needs.build.outputs.apk-url }}
           BUILD_SHA: ${{ needs.build.outputs.sha }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
         with:
           script: |
             const repo = context.repo;
             const pr = context.payload.pull_request;
             const marker = '<!-- zaelio-preview-apk -->';
+            const version = process.env.RELEASE_VERSION;
+            const {data} = await github.rest.repos.getContent({
+              ...repo, path: 'CHANGELOG.md', ref: process.env.BUILD_SHA
+            });
+            const changelog = Buffer.from(data.content, 'base64').toString('utf8').replace(/\r\n/g, '\n');
+            const section = changelog.split(/^##[ \t]+/m).find(part => part.split('\n')[0].trim() === version);
+            const notes = section?.split('\n').slice(1).join('\n').trim();
+            if (!notes) throw new Error(`Missing changelog for version ${version}`);
             const body = `${marker}\n### Debug-APK\n` +
               `[APK herunterladen](${process.env.APK_URL}) (GitHub-Anmeldung erforderlich)\n\n` +
               `Commit: \`${process.env.BUILD_SHA}\`\n\n` +
               `Vorschau, kein finales Release. Das Artefakt enthält \`zaelio-debug.apk\`. ` +
               `Die Signatur unterscheidet sich vom Release und kann zwischen Builds wechseln. ` +
-              `Vor einer Neuinstallation ein Backup erstellen.`;
+              `Vor einer Neuinstallation ein Backup erstellen.\n\n` +
+              `### Changelog ${version}\n\n${notes}`;
             const comments = await github.paginate(github.rest.issues.listComments, {
               ...repo, issue_number: pr.number, per_page: 100
             });

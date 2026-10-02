@@ -199,6 +199,7 @@ public final class SettingsUi {
         Chip chip = new Chip(activity);
         chip.setId(id);
         chip.setText(label);
+        chip.setTextSize(ui.sp(14));
         styleChoiceChip(chip, selected);
         return chip;
     }

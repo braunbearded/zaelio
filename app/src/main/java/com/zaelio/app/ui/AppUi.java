@@ -21,11 +21,15 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import androidx.core.graphics.ColorUtils;
+
 import com.zaelio.app.I18n;
 import com.zaelio.app.R;
 import com.zaelio.app.theme.ThemeStore;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.Chip;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.shape.ShapeAppearanceModel;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -248,7 +252,7 @@ public final class AppUi {
         return bar;
     }
 
-    private MaterialButton iconButton(int iconRes, String contentDescription, View.OnClickListener onClick) {
+    public MaterialButton iconButton(int iconRes, String contentDescription, View.OnClickListener onClick) {
         MaterialButton button = new MaterialButton(activity);
         button.setText("");
         button.setAllCaps(false);
@@ -300,6 +304,7 @@ public final class AppUi {
         input.setPadding(spaceM(), spaceM(), spaceM(), spaceM());
         input.setBackground(makeRoundedCard(theme.surfaceColor(), theme.borderColor()));
         input.setTextColor(theme.primaryTextColor());
+        input.setTextSize(sp(16));
         input.setHintTextColor(theme.mutedTextColor());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
         lp.bottomMargin = spaceM();
@@ -372,6 +377,7 @@ public final class AppUi {
         layout.setBoxStrokeColorStateList(inputBorderStateList());
         layout.setBoxStrokeWidth(strokeWidth());
         layout.setBoxStrokeWidthFocused(focusedStrokeWidth());
+        layout.setDefaultHintTextColor(inputHintStateList());
         layout.setHintTextColor(inputHintStateList());
         layout.setBoxCornerRadii(cornerRadius(), cornerRadius(), cornerRadius(), cornerRadius());
         input.setHint(null);
@@ -406,6 +412,42 @@ public final class AppUi {
                         new int[]{}
                 },
                 new int[]{accent, accent, normal, normal});
+    }
+
+    public ColorStateList checkedColorStateList() {
+        return new ColorStateList(new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}},
+                new int[]{theme.accentColor(), theme.mutedTextColor()});
+    }
+
+    public Chip choiceChip(String label) {
+        Chip chip = new Chip(activity);
+        chip.setText(t(label));
+        chip.setTextSize(sp(14));
+        chip.setCheckable(true);
+        chip.setCheckedIconVisible(false);
+        chip.setShapeAppearanceModel(ShapeAppearanceModel.builder().setAllCornerSizes(buttonHeight() / 2f).build());
+        chip.setChipStartPadding(spaceS());
+        chip.setChipEndPadding(spaceS());
+        chip.setTextStartPadding(0);
+        chip.setTextEndPadding(0);
+        int[][] states = {new int[]{android.R.attr.state_checked}, new int[]{}};
+        chip.setTextColor(new ColorStateList(states, new int[]{Color.WHITE, theme.primaryTextColor()}));
+        chip.setChipBackgroundColor(new ColorStateList(states, new int[]{theme.accentColor(), theme.surfaceAltColor()}));
+        chip.setChipStrokeColor(new ColorStateList(states, new int[]{theme.accentColor(), theme.borderColor()}));
+        chip.setChipStrokeWidth(strokeWidth());
+        return chip;
+    }
+
+    public Chip filterChip(String label, Runnable remove) {
+        Chip chip = choiceChip(label);
+        chip.setCheckable(false);
+        chip.setChipBackgroundColor(ColorStateList.valueOf(ColorUtils.compositeColors(theme.accentSoftColor(), theme.surfaceColor())));
+        chip.setChipStrokeColor(ColorStateList.valueOf(theme.accentColor()));
+        chip.setCloseIconVisible(true);
+        chip.setCloseIconTint(ColorStateList.valueOf(theme.primaryTextColor()));
+        chip.setCloseIconContentDescription(t("Filter entfernen") + ": " + label);
+        chip.setOnCloseIconClickListener(v -> remove.run());
+        return chip;
     }
 
     public TextView listIcon(String text) {

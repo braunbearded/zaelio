@@ -10,15 +10,27 @@ Kontakt/Bugs: https://github.com/braunbearded/zaelio/issues
 
 - Eigene Tracker mit global sortierten Feldern erstellen; neue Elemente scrollen im Editor automatisch in den sichtbaren Bereich
 - Tracker-Felder umsortieren oder umbenennen, ohne gespeicherte Session-Werte zu verlieren
-- Sessions erfassen und fortsetzen, mit großen Plus/Minus-Buttons und Material-Feldern für Text, Zahlen und Timer
+- Sessions erfassen und fortsetzen, mit großen Plus/Minus-Buttons (Plus in Akzentfarbe, Minus grau wie Reset) und Material-Feldern für Text, Zahlen und Timer
 - Session-Felder minimal animiert ein-/ausklappen; Startzustand in den Einstellungen wählen
 - Listen-Einträge per Long-Press, Links-Swipe oder `...`-Menü löschen; abgebrochene Swipes lösen keine Löschaktion aus
-- Sessions und Tracker per Drag-Handle in der Übersicht sortieren
+- Sessions und Tracker mit Trefferzahl, entfernbaren Filter-Chips und einem zentrierten Material-Popup filtern/sortieren: gespeicherte Tracker, Session-Zeitraum und manuell/neueste/älteste/Trackername A–Z
+- Sessions und Tracker per Drag-Handle in der ungefilterten, manuell sortierten Übersicht sortieren
 - Android-Zurück navigiert sinnvoll; auf Home beendet erst ein schneller Doppel-Zurück-Druck die App
 - Werte lokal in SQLite speichern
 - Tracker, Sessions oder komplette Backups als JSON importieren/exportieren
-- Helles/dunkles Design, Schriftgröße, Akzentfarbe, globale Feldgröße und Session-Feld-Startzustand einstellbar
+- Helles/dunkles Design, Schriftgröße (auch für Editor-Eingaben, Dropdown-Einträge, Checkboxen und Einstellungs-Chips), Akzentfarbe, globale Feldgröße und Session-Feld-Startzustand einstellbar
 - Kein Google Play Services, kein Firebase, keine Cloud
+
+## Filter und Sortierung
+
+- Die Filterleiste liegt in einer eigenen Karte mit demselben Hintergrund wie Session-/Tracker-Karten, mit Abstand zum Header und zur Liste. Schrift und Icons der Filter- und Sortierungsbuttons verwenden die gewählte Akzentfarbe. Innenabstände ober-/unterhalb der Buttonzeile und zur folgenden Chip-Gruppe sind einheitlich. Filter- und Sortierungsbuttons bleiben auch bei mehrzeiligen Beschriftungen gleich hoch und ausgerichtet.
+- „Filter“ öffnet ein zentriertes, scrollbares Material-Popup im selben Kartenstil wie die Sortierung, ohne Einfahren von unten. In der Session-Übersicht werden nur Tracker mit vorhandenen Sessions angeboten; die Tracker-Übersicht bietet weiterhin alle gespeicherten Vorlagen an. Mehrere ausgewählte Tracker werden kombiniert, keine Auswahl zeigt alle.
+- Zeitraumfilter beziehen sich auf das **Erstellungsdatum der Sessions**, nicht auf spätere Bearbeitungen oder das Anlegen eines Trackers. In der Tracker-Übersicht bleiben bei einem aktiven Zeitraum nur Tracker mit mindestens einer passenden Session sichtbar.
+- „7 Tage“ und „30 Tage“ schließen heute ein und sind nur wählbar, wenn Sessions der gewählten Tracker darin liegen. „Eigener Zeitraum“ startet mit deren erstem/letztem Session-Datum; die Material-Datumsauswahl ist auf diese Grenzen beschränkt. Ohne Sessions sind Zeitraumoptionen deaktiviert. Beide Grenztage zählen vollständig in der lokalen Zeitzone, auch beim Sommerzeitwechsel; ein eigener Zeitraum ohne Treffer kann nicht übernommen werden.
+- Nach Anlegen/Löschen von Sessions oder Trackern werden Optionen, Chips, Trefferzahlen und Datumsgrenzen neu aus den verbleibenden Daten ermittelt. Ein Tracker verliert seine Session-Filteroption, wenn seine letzte Session gelöscht wurde. Nicht mehr mögliche Tracker-/Zeitraumfilter werden entfernt, gültige eigene Datumsgrenzen bei Bedarf angepasst; die Sortierung bleibt erhalten.
+- Die Trefferzahl im Popup aktualisiert sich sofort. Erst „… anzeigen“ übernimmt Änderungen; Schließen, Zurück und Tippen außerhalb verwerfen sie. „Zurücksetzen“ leert den Entwurf und stellt die manuelle Sortierung wieder her. Aktive Filter lassen sich einzeln über das × ihrer Chips entfernen.
+- Filter und Sortierung werden pro Tab separat lokal gespeichert. Standard bleibt die bestehende manuelle Reihenfolge. Neueste/älteste sortiert nach dem Erstellungsdatum des jeweiligen Eintrags; Trackername A–Z verwendet die App-Sprache.
+- Filtern und Sortieren verändern keine gespeicherten Reihenfolgen oder Session-Werte. Drag-Handles erscheinen nur ohne Filter bei manueller Sortierung, damit verborgene Einträge nicht versehentlich umsortiert werden.
 
 ## Tracker bearbeiten und Session-Daten
 
@@ -94,14 +106,21 @@ Release-Builds sollten mit JDK 21 laufen, damit GitHub-Release und F-Droid-Build
 
 ## 🚀 Release-Version erstellen
 
+**Standardweg: aktueller `main` → Versionsbranch `vX.Y.Z` → PR nach `main` → Merge → Release.** Kein direkter Release-Push auf `main` und kein manuelles Release-Tag. App-/Workflow-Änderungen vor dem Push mitcommitten; das Script nimmt nur Versionsdateien automatisch in seinen Commit auf.
+
 ```bash
 ./scripts/release.sh
 ```
 
 Das Script bereitet einen Versionsbranch wie `v1.0.10` vor: Version und `versionCode` erhöhen, bisherige `Unreleased`-Einträge in den Release-Changelog übernehmen und einen Fastlane-Changelog mit höchstens 500 Zeichen erzeugen. Es kann Tests/Debug-Build ausführen, die Vorbereitung committen und **nur den Branch** pushen. Tags und F-Droid-Commit-Hashes werden nicht mehr vor dem Merge angelegt.
 
-1. Versionsbranch pushen und einen PR nach `main` öffnen (Branch und PR müssen aus diesem Repository stammen).
-2. `.github/workflows/tests.yml` testet den Versions-PR und baut eine Debug-APK beim Öffnen, Wiederöffnen und bei weiteren Commits (`synchronize`). Ein Branch-Push ohne PR startet keinen Build; so entfällt der doppelte Push-/PR-Lauf. Neuere Builds ersetzen ältere Läufe desselben PRs. Der PR bekommt einen aktualisierbaren Kommentar mit Artefakt-Download und Commit-Hash. Der Download benötigt eine GitHub-Anmeldung und ist nur während der Artefakt-Aufbewahrungsdauer verfügbar.
+1. Versionsbranch pushen und einen PR nach `main` öffnen (Branch und PR müssen aus diesem Repository stammen). Falls im Script nicht gepusht wurde, z. B. für `1.0.10`:
+   ```bash
+   git push --set-upstream origin refs/heads/v1.0.10
+   gh pr create --base main --head v1.0.10 --title "Release 1.0.10" --body-file /pfad/zur/pr-beschreibung.md
+   ```
+   Ohne GitHub CLI den PR über `https://github.com/braunbearded/zaelio/compare/main...v1.0.10?expand=1` öffnen. Das Script öffnet oder mergt keinen PR automatisch. Erst nach erfolgreichen Preview-Checks und Prüfung des Signing-Environments mergen.
+2. `.github/workflows/tests.yml` testet den Versions-PR und baut eine Debug-APK beim Öffnen, Wiederöffnen und bei weiteren Commits (`synchronize`). Ein Branch-Push ohne PR startet keinen Build; so entfällt der doppelte Push-/PR-Lauf. Neuere Builds ersetzen ältere Läufe desselben PRs. Der PR bekommt einen aktualisierbaren Kommentar mit Artefakt-Download, Commit-Hash und dem vollständigen Abschnitt seiner Version aus `CHANGELOG.md`. Die Version wird gegen den Versionsbranch geprüft; das Changelog wird am exakt gebauten Commit gelesen, nicht vom inzwischen eventuell aktualisierten Branch. Fehlt der Versionsabschnitt oder ist er leer, schlägt der Kommentarjob fehl, statt falsche Release-Notizen zu posten. Der Download benötigt eine GitHub-Anmeldung und ist nur während der Artefakt-Aufbewahrungsdauer verfügbar.
 3. Beim Merge startet `.github/workflows/release.yml` über `pull_request_target: closed` im vertrauenswürdigen `main`-Kontext, ausschließlich für bereits nach `main` gemergte Versions-PRs aus diesem Repository. Gebaut wird nur der exakte Merge-/Squash-Commit nach Prüfung, dass er zu `main` gehört, niemals der ungeprüfte PR-Head: Tests, signierter Release-Build und Prüfung des Signing-Zertifikats. Danach entstehen Tag `v<versionName>` am exakten Merge-/Squash-Commit und das finale GitHub Release mit `zaelio.apk` direkt im selben Workflow. Geschlossene, nicht gemergte PRs und Tag-Pushes veröffentlichen nichts.
 4. Die Action aktualisiert anschließend die F-Droid-Metadaten mit diesem vollständigen Commit-Hash, stellt sie als Artefakt bereit und committet sie nach `main`.
 
@@ -189,7 +208,9 @@ app/src/main/java/com/zaelio/app/
 ├── JsonUtil.java                  # JSON-Helfer
 ├── FormatUtil.java                # Gemeinsame Formatierung
 ├── Models.java                    # Datenmodelle
-├── HomeUi.java                    # Session-/Tracker-Übersicht
+├── HomeUi.java                    # Session-/Tracker-Übersicht, Filterleiste und Chips
+├── OverviewOptions.java           # Filter-/Sortierzustand pro Tab und lokale Datumsgrenzen
+├── OverviewFilterUi.java          # Material-Filter-Popup und Datumsauswahl
 ├── ReorderHelper.java             # Gemeinsames Drag-Reorder-Verhalten
 ├── TrackerFlowUi.java             # Tracker-Editor und Session-Routing
 ├── FieldInputUi.java              # Eingabefelder, Timer, Zahlensteuerung und einklappbare Session-Felder
@@ -223,7 +244,8 @@ Aktueller Fokus:
 - `TrackingDatabaseTest` prüft Seed-Daten, Sessions, Records, Previous Values, Löschlogik, Batch-Speicherung, Übersichtssortierung und Migration auf Schema v8.
 - `BackupJsonRepositoryTest` prüft alle Backup-Export/Import-Varianten gegen Beispiel-JSON unter `app/src/test/resources/backup-fixtures/`, Rollback nach teilweise ausgeführtem Import (JSON- und SQLite-Fehler, einschließlich doppelter Records) sowie Session-Import nach Feldsortierung mit unbekannten Referenzen.
 - `TrackerJsonRepositoryTest` prüft Werterhalt über mehrere Sessions bei Sortierung, Metadatenänderungen, Umbenennung/Schlüsseltausch, Hinzufügen/Löschen, Duplikaten, Backup-Import und Datenbank-Neuöffnung. Fehlerfälle umfassen fehlende IDs/Tracker, fehlerhafte Neuanlage und beschädigte gespeicherte JSON-Werte; auch das Entfernen aller Felder muss Sessions und Zeitstempel erhalten.
-- `TrackerFlowUiTest` prüft Drag-/Autosave (auch nach dem Löschen eines mittleren Feldes), Umbenennen, Kopieren/Löschen und leere Namen im tatsächlichen Editor sowie stabile IDs. Session-Tests prüfen bearbeitbare Controls, Debounce-Neustart und Dirty-Field-Speicherung, sofortiges Speichern und Timer-Stopp beim Verlassen sowie die Unterscheidung zwischen gespeicherten Werten, explizitem `null` und fehlenden Vorbelegungswerten einschließlich Leeren/Speichern/Vorbelegen über die UI.
+- `TrackerFlowUiTest` prüft die Akzentfarbe für Plus und den Reset-Stil für Minus in beiden Themes und allen Feldgrößen, Schriftgrößen für Editor-Controls/Dropdowns/Einstellungs-Chips sowie Drag-/Autosave (auch nach dem Löschen eines mittleren Feldes), Umbenennen, Kopieren/Löschen und leere Namen im tatsächlichen Editor sowie stabile IDs. Session-Tests prüfen bearbeitbare Controls, Debounce-Neustart und Dirty-Field-Speicherung, sofortiges Speichern und Timer-Stopp beim Verlassen sowie die Unterscheidung zwischen gespeicherten Werten, explizitem `null` und fehlenden Vorbelegungswerten einschließlich Leeren/Speichern/Vorbelegen über die UI.
+- `HomeUiTest` und `OverviewOptionsTest` prüfen das zentrierte Material-Popup, echte Tracker-Auswahl, Live-Trefferzahlen, Übernehmen/Verwerfen/Zurücksetzen, Filter-Chips, begrenzte Material-Datumsauswahl, alle Sortierungen, Persistenz pro Tab und unveränderte manuelle Reihenfolgen. Löschtests prüfen letzte Sessions, entfernte Datumsgrenzen, leere Daten und wieder hinzukommende Tracker-Optionen. Native-Graphics-Tests prüfen mehrzeilige Sortierungsbuttons in drei Sprachen/Schriftgrößen sowie die separate Filterkarte mit Session-/Tracker-Hintergrund, Buttonschrift/-icons in Akzentfarbe und gleichmäßigen Abständen, mit und ohne Chips in beiden Tabs/Themes. Datumsprüfungen umfassen vollständige Grenztage, lokale Zeitzonen, Sommerzeit und Zeiträume anhand der Sessions statt Tracker-Erstellung.
 - `DeleteGestureHelperTest` prüft Richtung/Länge von Swipes, abgebrochene Gesten, ausgeschlossene Eingabe-Unterbäume, Long-Press-Abbruch, nicht stapelbare Bestätigungsdialoge, verzögerte Löschung und nicht-farbliches Auswahlfeedback bei roter Akzentfarbe.
 
 Die Tests prüfen Verhalten und Regressionen; eine automatische Zeilen-/Branch-Coverage-Auswertung ist aktuell nicht eingerichtet.
