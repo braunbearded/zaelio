@@ -101,7 +101,7 @@ Release-Builds sollten mit JDK 21 laufen, damit GitHub-Release und F-Droid-Build
 Das Script bereitet einen Versionsbranch wie `v1.0.10` vor: Version und `versionCode` erhöhen, bisherige `Unreleased`-Einträge in den Release-Changelog übernehmen und einen Fastlane-Changelog mit höchstens 500 Zeichen erzeugen. Es kann Tests/Debug-Build ausführen, die Vorbereitung committen und **nur den Branch** pushen. Tags und F-Droid-Commit-Hashes werden nicht mehr vor dem Merge angelegt.
 
 1. Versionsbranch pushen und einen PR nach `main` öffnen (Branch und PR müssen aus diesem Repository stammen).
-2. `.github/workflows/tests.yml` testet den Branch und baut eine Debug-APK. Der PR bekommt einen aktualisierbaren Kommentar mit Artefakt-Download und Commit-Hash; auch das Öffnen/Wiederöffnen eines PRs löst einen Vorschau-Build aus. Der Download benötigt eine GitHub-Anmeldung und ist nur während der Artefakt-Aufbewahrungsdauer verfügbar.
+2. `.github/workflows/tests.yml` testet den Versions-PR und baut eine Debug-APK beim Öffnen, Wiederöffnen und bei weiteren Commits (`synchronize`). Ein Branch-Push ohne PR startet keinen Build; so entfällt der doppelte Push-/PR-Lauf. Neuere Builds ersetzen ältere Läufe desselben PRs. Der PR bekommt einen aktualisierbaren Kommentar mit Artefakt-Download und Commit-Hash. Der Download benötigt eine GitHub-Anmeldung und ist nur während der Artefakt-Aufbewahrungsdauer verfügbar.
 3. Beim Merge startet `.github/workflows/release.yml`: Tests, signierter Release-Build und Prüfung des Signing-Zertifikats. Danach entstehen Tag `v<versionName>` am exakten Merge-/Squash-Commit und das finale GitHub Release mit `zaelio.apk` direkt im selben Workflow. Geschlossene, nicht gemergte PRs und Tag-Pushes veröffentlichen nichts.
 4. Die Action aktualisiert anschließend die F-Droid-Metadaten mit diesem vollständigen Commit-Hash, stellt sie als Artefakt bereit und committet sie nach `main`.
 
@@ -205,7 +205,7 @@ Lokale Unit-Tests laufen mit JUnit und Robolectric:
 ./gradlew testDebugUnitTest
 ```
 
-GitHub Actions führt bei jedem Push auf einen vorbereiteten Versionsbranch (z. B. `v1.2.3`, `v1.2.3-fix` oder `v1.2.3/feature`) die Tests und `assembleDebug` mit Ubuntu/JDK 21 aus, ohne Signing-Secrets. Die Debug-APK wird als Artefakt gespeichert und in offenen PRs nach `main` verlinkt. Nur der Merge eines solchen PRs erstellt Tag und signiertes Release.
+GitHub Actions führt für PRs nach `main` aus vorbereiteten Versionsbranches desselben Repositorys (z. B. `v1.2.3`, `v1.2.3-fix` oder `v1.2.3/feature`) die Tests und `assembleDebug` mit Ubuntu/JDK 21 aus, ohne Signing-Secrets. Auslöser sind Öffnen, Wiederöffnen und weitere Commits im offenen PR; reine Branch-Pushes ohne PR bauen nicht. Die Debug-APK wird als Artefakt gespeichert und in offenen PRs nach `main` verlinkt. Nur der Merge eines solchen PRs erstellt Tag und signiertes Release.
 
 Die Release-Helfer werden ohne zusätzliche Abhängigkeiten geprüft:
 

@@ -24,6 +24,15 @@ class ReleaseCiTest(unittest.TestCase):
             'Binaries: https://example.com/v%v/zaelio.apk\nAllowedAPKSigningKeys: trusted-key\n'
             'CurrentVersion: 1.2.2\nCurrentVersionCode: 3\n')
 
+    def test_preview_only_runs_for_same_repository_version_prs_and_updates(self):
+        workflow = (Path(__file__).parent.parent / '.github/workflows/tests.yml').read_text()
+        self.assertNotIn('\n  push:', workflow)
+        self.assertNotIn('pull_request_target:', workflow)
+        self.assertIn('    branches: [main]', workflow)
+        self.assertIn('    types: [opened, reopened, synchronize]', workflow)
+        self.assertIn('github.event.pull_request.head.repo.full_name == github.repository', workflow)
+        self.assertIn("startsWith(github.head_ref, 'v')", workflow)
+
     def test_version_branch_must_match_prepared_version(self):
         for branch in ('v1.2.3', 'v1.2.3-fix', 'v1.2.3/feature'):
             self.assertEqual(('1.2.3', 4), release_info(self.root, branch))

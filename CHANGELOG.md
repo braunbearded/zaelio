@@ -4,12 +4,12 @@
 
 ## 1.0.9
 
-- Added debug APK artifacts and an updated download comment in version-branch PRs.
+- Added debug APK artifacts and an updated download comment in version-branch PRs. Preview builds run only when PRs are opened, reopened or updated, avoiding duplicate push/PR builds.
 - Merging a version PR into main now tests, signs, verifies and publishes the final release, tagging the exact merge commit and updating F-Droid metadata afterwards. Tag pushes no longer publish releases.
 - Changed the release script to prepare and push only the version branch, without prematurely creating tags or F-Droid hashes; added release-tooling regression tests.
 - Bound the release job to the release environment and pinned workflow actions to verified upstream commit SHAs; environment protection rules and signing secrets must be configured on GitHub before publication.
 - Fixed release-script tag checks and push references when a version branch and tag have the same name.
-- Added GitHub Actions unit tests for pushes to version-prefixed branches (e.g. `v1.2.3` or `v1.2.3-fix`), without requiring release signing secrets.
+- Added GitHub Actions unit tests for PRs from version-prefixed branches (e.g. `v1.2.3` or `v1.2.3-fix`), without requiring release signing secrets.
 - Fixed field drag ordering after deleting another field; removed stale editor state and reused the shared back footer and icon helpers.
 - Preserved explicit JSON null values when clearing session inputs so previous-value prefill no longer falls back to defaults.
 - Made SQLite write failures roll back backup imports instead of silently committing partial data; added regression tests for duplicate records, cleared values, and reorder-after-delete.
