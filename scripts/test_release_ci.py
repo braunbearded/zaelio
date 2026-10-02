@@ -33,6 +33,19 @@ class ReleaseCiTest(unittest.TestCase):
         self.assertIn('github.event.pull_request.head.repo.full_name == github.repository', workflow)
         self.assertIn("startsWith(github.head_ref, 'v')", workflow)
 
+    def test_release_uses_main_context_and_only_the_trusted_merged_commit(self):
+        workflow = (Path(__file__).parent.parent / '.github/workflows/release.yml').read_text()
+        self.assertIn('  pull_request_target:\n    branches: [main]\n    types: [closed]', workflow)
+        self.assertIn("github.ref == 'refs/heads/main'", workflow)
+        self.assertIn("github.event.pull_request.base.ref == 'main'", workflow)
+        self.assertIn('github.event.pull_request.merged == true', workflow)
+        self.assertIn('github.event.pull_request.head.repo.full_name == github.repository', workflow)
+        self.assertIn("startsWith(github.event.pull_request.head.ref, 'v')", workflow)
+        self.assertIn('ref: ${{ github.event.pull_request.merge_commit_sha }}', workflow)
+        self.assertNotIn('ref: ${{ github.event.pull_request.head.sha }}', workflow)
+        self.assertLess(workflow.index('git merge-base --is-ancestor "$RELEASE_SHA" origin/main'),
+                        workflow.index('python3 scripts/release_ci.py'))
+
     def test_version_branch_must_match_prepared_version(self):
         for branch in ('v1.2.3', 'v1.2.3-fix', 'v1.2.3/feature'):
             self.assertEqual(('1.2.3', 4), release_info(self.root, branch))
