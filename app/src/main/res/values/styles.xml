@@ -9,4 +9,12 @@
         <item name="colorOnSurface">#101828</item>
         <item name="colorOutline">#d0d5dd</item>
     </style>
+    <style name="OverviewDatePickerLight" parent="ThemeOverlay.Material3.MaterialCalendar">
+        <item name="colorSurface">#ffffff</item>
+        <item name="colorOnSurface">#101828</item>
+    </style>
+    <style name="OverviewDatePickerDark" parent="ThemeOverlay.Material3.MaterialCalendar">
+        <item name="colorSurface">#111827</item>
+        <item name="colorOnSurface">#f8fafc</item>
+    </style>
 </resources>

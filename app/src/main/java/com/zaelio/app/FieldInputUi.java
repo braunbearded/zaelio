@@ -139,7 +139,7 @@ final class FieldInputUi {
     }
 
     private void numericControl(LinearLayout fieldBox, FieldDefinition field, Object value, Map<String, View> inputs, Runnable onChange) {
-        Button minus = ui.secondaryButton("−");
+        Button minus = ui.ghostButton("−");
         Button plus = ui.primaryButton("+");
         EditText editText = styledEditText(value);
         editText.setInputType("int".equals(field.type)

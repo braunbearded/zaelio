@@ -11,16 +11,25 @@ import static org.robolectric.Shadows.shadowOf;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputLayout;
 import com.zaelio.app.theme.ThemeStore;
 import com.zaelio.app.ui.AppUi;
+import com.zaelio.app.ui.SettingsUi;
 import androidx.test.core.app.ApplicationProvider;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -174,6 +183,78 @@ public class TrackerFlowUiTest {
         assertEquals(13L, new JSONObject(db.records(sessionId).get(tracker.fields.get(0).id).valuesJson).getLong("reps"));
         assertEquals("Notiz gespeichert", new JSONObject(db.records(sessionId).get(tracker.fields.get(2).id).valuesJson).getString("note"));
         assertEquals(0L, new JSONObject(db.records(sessionId).get(tracker.fields.get(3).id).valuesJson).getLong("duration"));
+    }
+
+    @Test
+    public void numericButtonsUseAccentForPlusAndResetStyleForMinusAcrossThemesAndFieldSizes() {
+        ThemeStore theme = new ThemeStore(activity);
+        AppUi ui = new AppUi(activity, theme);
+        long sessionId = db.createSession(db.trackers().get(0).id);
+        for (int mode : new int[]{ThemeStore.THEME_LIGHT, ThemeStore.THEME_DARK}) {
+            theme.setThemeMode(mode);
+            theme.setAccentIndex(mode == ThemeStore.THEME_LIGHT ? 1 : 4);
+            for (int size = 0; size < theme.fieldSizeCount(); size++) {
+                theme.setFieldSizeIndex(size);
+                flow.openSession(sessionId);
+                List<MaterialButton> buttons = find(MaterialButton.class,
+                        button -> "+".contentEquals(button.getText()) || "−".contentEquals(button.getText()));
+                assertEquals(4, buttons.size());
+                MaterialButton reset = find(MaterialButton.class,
+                        button -> "Reset".contentEquals(button.getText())).get(0);
+                for (MaterialButton button : buttons) {
+                    boolean plus = "+".contentEquals(button.getText());
+                    assertEquals(plus ? theme.accentColor() : reset.getBackgroundTintList().getDefaultColor(),
+                            button.getBackgroundTintList().getDefaultColor());
+                    assertEquals(plus ? theme.accentColor() : reset.getStrokeColor().getDefaultColor(),
+                            button.getStrokeColor().getDefaultColor());
+                    assertEquals(plus ? 0 : reset.getStrokeWidth(), button.getStrokeWidth());
+                    assertEquals(plus ? Color.WHITE : reset.getCurrentTextColor(), button.getCurrentTextColor());
+                    assertTrue(button.getLayoutParams().height >= ui.buttonHeight());
+                }
+                EditText number = find(TextInputLayout.class,
+                        layout -> "Wiederholungen".contentEquals(layout.getHint())).get(0).getEditText();
+                number.setText("12");
+                buttons.get(1).performClick();
+                assertEquals("13", number.getText().toString());
+                buttons.get(0).performClick();
+                assertEquals("12", number.getText().toString());
+            }
+        }
+    }
+
+    @Test
+    public void fontScaleAppliesToEditorControlsDropdownRowsAndSettingsChips() {
+        ThemeStore theme = new ThemeStore(activity);
+        AppUi ui = new AppUi(activity, theme);
+        long trackerId = db.trackers().get(0).id;
+        for (int scale = 0; scale < theme.fontScaleCount(); scale++) {
+            theme.setFontScaleIndex(scale);
+            float unit = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP,
+                    theme.fontScale(), activity.getResources().getDisplayMetrics());
+            flow.editTracker(trackerId);
+            for (EditText input : find(EditText.class, view -> true)) {
+                assertEquals(16 * unit, input.getTextSize(), 0.01f);
+            }
+            for (MaterialCheckBox checkBox : find(MaterialCheckBox.class, view -> true)) {
+                assertEquals(14 * unit, checkBox.getTextSize(), 0.01f);
+            }
+            MaterialAutoCompleteTextView dropdown = find(MaterialAutoCompleteTextView.class, view -> true).get(0);
+            View row = null;
+            for (int i = 0; i < dropdown.getAdapter().getCount(); i++) {
+                row = dropdown.getAdapter().getView(i, row, new LinearLayout(activity));
+                assertEquals(16 * unit, ((TextView) row).getTextSize(), 0.01f);
+            }
+            LinearLayout root = new LinearLayout(activity);
+            activity.setContentView(root);
+            new SettingsUi(activity, theme, ui, () -> {}, () -> {}).render(root);
+            List<Chip> chips = find(Chip.class, view -> true);
+            assertFalse(chips.isEmpty());
+            // Restyling a selection must not multiply the font scale again.
+            activity.findViewById(9200).performClick();
+            for (Chip chip : chips) {
+                assertEquals(14 * unit, chip.getTextSize(), 0.01f);
+            }
+        }
     }
 
     @Test

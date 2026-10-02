@@ -11,6 +11,7 @@ import android.widget.Filter;
 import android.view.Gravity;
 import android.view.TouchDelegate;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -411,6 +412,7 @@ public final class TrackerFlowUi {
         typeLayout.setBoxStrokeColorStateList(ui.inputBorderStateList());
         typeLayout.setBoxStrokeWidth(ui.strokeWidth());
         typeLayout.setBoxStrokeWidthFocused(ui.focusedStrokeWidth());
+        typeLayout.setDefaultHintTextColor(ui.inputHintStateList());
         typeLayout.setHintTextColor(ui.inputHintStateList());
         typeLayout.setBoxCornerRadii(ui.cornerRadius(), ui.cornerRadius(), ui.cornerRadius(), ui.cornerRadius());
         typeLayout.setEndIconMode(TextInputLayout.END_ICON_DROPDOWN_MENU);
@@ -437,6 +439,13 @@ public final class TrackerFlowUi {
             };
 
             @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                TextView view = (TextView) super.getView(position, convertView, parent);
+                view.setTextSize(ui.sp(16));
+                return view;
+            }
+
+            @Override
             public Filter getFilter() {
                 return filter;
             }
@@ -447,6 +456,7 @@ public final class TrackerFlowUi {
         typeInput.setText(typeLabels[typeIndex(field == null ? null : field.type)], false);
         typeInput.setInputType(0);
         typeInput.setTextColor(theme.primaryTextColor());
+        typeInput.setTextSize(ui.sp(16));
         typeInput.setHintTextColor(ui.inputHintStateList());
         typeInput.setBackgroundTintList(ui.inputBorderStateList());
         tintCursor(typeInput);
@@ -650,6 +660,7 @@ public final class TrackerFlowUi {
     private void styleCheckBox(MaterialCheckBox checkBox) {
         checkBox.setUseMaterialThemeColors(false);
         checkBox.setTextColor(theme.primaryTextColor());
+        checkBox.setTextSize(ui.sp(14));
         checkBox.setButtonTintList(checkBoxStateList());
         checkBox.setMinHeight(ui.checkRowHeight());
         checkBox.setMinimumHeight(ui.checkRowHeight());

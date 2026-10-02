@@ -1,0 +1,4 @@
+Added session/tracker filtering, date ranges, sorting, counts and removable chips.
+Matched filter cards to overview cards; accent-colored Filter/Sort labels and icons.
+Improved font scaling, dark-mode contrast and numeric button styling.
+PR APK previews now include the full version changelog; clarified the version-branch/PR release flow.

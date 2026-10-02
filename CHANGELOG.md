@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 1.0.10
+
+- Clarified the standard release path through a matching version branch and same-repository PR into main, with explicit push/PR commands; tags and signed publication remain merge-only.
+
+- Kept overview Filter/Sort buttons aligned and equally tall for multiline labels, and separated their controls/chips from the header and list in a card matching session/tracker backgrounds with accent-colored button text/icons, equal padding and button-to-chip spacing.
+- Made filter choices follow current tracker/session data: sessionless trackers disappear from session filters, date ranges/presets follow selected trackers' sessions, and deleted sessions remove obsolete filters and update date bounds. Material calendars enforce these bounds; tracker templates without sessions remain available in the tracker tab.
+- Added overview counts, removable filter chips and a centered, scrollable Material filter/sorting popup in the same card style as sorting menus (#21). Select existing trackers and inclusive session date ranges with Material date pickers; sort manually, newest/oldest first or by tracker name.
+- Kept filter/sort preferences separate per tab and saved them only on Apply. Date filters use session creation dates, including in the tracker overview; filtering/sorting never overwrites manual ordering or saved values.
+- Improved dark-theme contrast for filter chips and unfocused input hints, and closed the activity's database connection during destruction.
+- Added the matching version's full changelog to the debug APK PR comment, read from the exact built commit; repeated builds update the existing comment (#25).
+- Styled session Plus buttons with the selected accent color and Minus buttons with the same theme-aware gray style as Reset (#22).
+- Completed font-size setting support for tracker-editor inputs, type dropdown entries, checkboxes and settings chips from the checklist in #23; existing features remain unchanged.
+
 ## 1.0.9
 
 - Added debug APK artifacts and an updated download comment in version-branch PRs. Preview builds run only when PRs are opened, reopened or updated, avoiding duplicate push/PR builds.
